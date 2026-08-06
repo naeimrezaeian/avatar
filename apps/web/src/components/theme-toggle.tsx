@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,20 @@ const OPTIONS = [
   { value: "system", label: "Как в системе", icon: Monitor },
 ] as const;
 
+/** Подписка-заглушка: значение не меняется, различаются только снимки. */
+const noopSubscribe = () => () => {};
+
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  // На сервере тема неизвестна, поэтому до монтирования рисуем нейтральную
-  // иконку — иначе разметка сервера и клиента разойдётся.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // На сервере тема неизвестна, поэтому до гидратации рисуем нейтральную
+  // иконку — иначе разметка сервера и клиента разойдётся. useSyncExternalStore
+  // даёт разные снимки для сервера и клиента без установки состояния в эффекте,
+  // которая вызывала бы лишний каскад перерисовок.
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
 
   const active = OPTIONS.find((option) => option.value === theme) ?? OPTIONS[2];
   const Icon = mounted ? active.icon : Monitor;

@@ -3,7 +3,6 @@ import {
   Avatar,
   ConsentRecord,
   CreditAccount,
-  CreditTransaction,
   Project,
   ProjectDocument,
   Track,

@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { dataClient, queryKeys } from ".";
+import { onPreparationChange } from "./preparation";
 import { seedIfEmpty } from "./seed";
 
 function createQueryClient(): QueryClient {
@@ -26,6 +27,17 @@ function createQueryClient(): QueryClient {
  */
 function JobEventBridge({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Подготовка аватаров и голосов меняет их статусы вне запросов, поэтому
+    // её события тоже должны инвалидировать кэш — иначе карточки застревают
+    // в состоянии «материалы загружены» до перезагрузки страницы.
+    return onPreparationChange((kind) => {
+      void queryClient.invalidateQueries({
+        queryKey: kind === "avatars" ? queryKeys.avatars : queryKeys.voices,
+      });
+    });
+  }, [queryClient]);
 
   useEffect(() => {
     return dataClient.generation.subscribe((event) => {

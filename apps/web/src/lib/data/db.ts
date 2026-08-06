@@ -44,10 +44,17 @@ export interface AvatarDB extends DBSchema {
     value: GenerationJob;
     indexes: { "by-project": string };
   };
+  /**
+   * Содержимое загруженных файлов, ключ — id ассета. Хранится отдельно от
+   * метаданных: списки ассетов читаются часто, и тянуть с ними мегабайты
+   * бинарных данных незачем. Поле Asset.url остаётся адресом будущего
+   * удалённого файла, а локально ссылка выдаётся из этого стора.
+   */
+  blobs: { key: string; value: Blob };
 }
 
 const DB_NAME = "avatar-studio";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<AvatarDB>> | null = null;
 
@@ -61,7 +68,15 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
   }
 
   dbPromise ??= openDB<AvatarDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
+      if (oldVersion >= 1) {
+        // База уже существует: доводим её до текущей версии, не пересоздавая
+        // сторы — иначе демо-данные и загруженные файлы терялись бы при
+        // каждом обновлении схемы.
+        if (!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs");
+        return;
+      }
+
       db.createObjectStore("avatars", { keyPath: "id" });
       db.createObjectStore("voices", { keyPath: "id" });
       db.createObjectStore("projects", { keyPath: "id" });
@@ -80,6 +95,9 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
 
       const jobs = db.createObjectStore("jobs", { keyPath: "id" });
       jobs.createIndex("by-project", "projectId");
+
+      // Ключ задаётся снаружи (id ассета), поэтому без keyPath.
+      db.createObjectStore("blobs");
     },
   });
 
