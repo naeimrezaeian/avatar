@@ -7,8 +7,10 @@ import type {
   CreditTransaction,
   GenerationJob,
   JobEvent,
+  ExportSettings,
   Project,
   ProjectDocument,
+  RenderVersion,
   Resolution,
   Voice,
 } from "@avatar/contracts";
@@ -130,7 +132,7 @@ export interface GenerationService {
   startVoiceover(input: { projectId: string; sceneId: string }): Promise<GenerationJob>;
   /** Генерация видео из готовой озвучки. Дорого, требует успешного первого этапа. */
   startVideo(input: { projectId: string; sceneId: string }): Promise<GenerationJob>;
-  startExport(input: { projectId: string; resolution: Resolution }): Promise<GenerationJob>;
+  startExport(input: { projectId: string; settings: ExportSettings }): Promise<GenerationJob>;
   cancel(jobId: string): Promise<void>;
   retry(jobId: string): Promise<GenerationJob>;
   /**
@@ -138,6 +140,15 @@ export interface GenerationService {
    * поэтому подписка одна, а не по одной на каждый экран.
    */
   subscribe(listener: (event: JobEvent) => void): () => void;
+}
+
+export interface RenderVersionRepository {
+  list(projectId?: string): Promise<RenderVersion[]>;
+  get(id: string): Promise<RenderVersion | null>;
+  /** Публичная ссылка с ограниченным сроком (п.10 ТЗ). */
+  share(id: string, expiresInDays: number): Promise<RenderVersion>;
+  revokeShare(id: string): Promise<RenderVersion>;
+  remove(id: string): Promise<void>;
 }
 
 export interface DataClient {
@@ -149,5 +160,6 @@ export interface DataClient {
   consents: ConsentRepository;
   credits: CreditRepository;
   jobs: JobRepository;
+  renderVersions: RenderVersionRepository;
   generation: GenerationService;
 }

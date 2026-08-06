@@ -9,6 +9,7 @@ import type {
   GenerationJob,
   Project,
   ProjectDocument,
+  RenderVersion,
   Voice,
 } from "@avatar/contracts";
 
@@ -51,10 +52,15 @@ export interface AvatarDB extends DBSchema {
    * удалённого файла, а локально ссылка выдаётся из этого стора.
    */
   blobs: { key: string; value: Blob };
+  renderVersions: {
+    key: string;
+    value: RenderVersion;
+    indexes: { "by-project": string };
+  };
 }
 
 const DB_NAME = "avatar-studio";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<AvatarDB>> | null = null;
 
@@ -68,36 +74,41 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
   }
 
   dbPromise ??= openDB<AvatarDB>(DB_NAME, DB_VERSION, {
+    // Шаги накопительные и идут по возрастанию версии: браузер вызывает
+    // upgrade один раз с той версией, которая лежит у пользователя, и она может
+    // быть любой из прошлых. Ранний выход по «база уже есть» пропустил бы
+    // промежуточные шаги у того, кто не открывал приложение пару релизов.
     upgrade(db, oldVersion) {
-      if (oldVersion >= 1) {
-        // База уже существует: доводим её до текущей версии, не пересоздавая
-        // сторы — иначе демо-данные и загруженные файлы терялись бы при
-        // каждом обновлении схемы.
-        if (!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs");
-        return;
+      if (oldVersion < 1) {
+        db.createObjectStore("avatars", { keyPath: "id" });
+        db.createObjectStore("voices", { keyPath: "id" });
+        db.createObjectStore("projects", { keyPath: "id" });
+        db.createObjectStore("documents", { keyPath: "projectId" });
+        db.createObjectStore("consents", { keyPath: "id" });
+        db.createObjectStore("creditAccounts", { keyPath: "userId" });
+
+        const assets = db.createObjectStore("assets", { keyPath: "id" });
+        assets.createIndex("by-project", "projectId");
+
+        const holds = db.createObjectStore("creditHolds", { keyPath: "id" });
+        holds.createIndex("by-job", "jobId");
+
+        const transactions = db.createObjectStore("creditTransactions", { keyPath: "id" });
+        transactions.createIndex("by-user", "userId");
+
+        const jobs = db.createObjectStore("jobs", { keyPath: "id" });
+        jobs.createIndex("by-project", "projectId");
       }
 
-      db.createObjectStore("avatars", { keyPath: "id" });
-      db.createObjectStore("voices", { keyPath: "id" });
-      db.createObjectStore("projects", { keyPath: "id" });
-      db.createObjectStore("documents", { keyPath: "projectId" });
-      db.createObjectStore("consents", { keyPath: "id" });
-      db.createObjectStore("creditAccounts", { keyPath: "userId" });
+      if (oldVersion < 2) {
+        // Ключ задаётся снаружи (id ассета), поэтому без keyPath.
+        db.createObjectStore("blobs");
+      }
 
-      const assets = db.createObjectStore("assets", { keyPath: "id" });
-      assets.createIndex("by-project", "projectId");
-
-      const holds = db.createObjectStore("creditHolds", { keyPath: "id" });
-      holds.createIndex("by-job", "jobId");
-
-      const transactions = db.createObjectStore("creditTransactions", { keyPath: "id" });
-      transactions.createIndex("by-user", "userId");
-
-      const jobs = db.createObjectStore("jobs", { keyPath: "id" });
-      jobs.createIndex("by-project", "projectId");
-
-      // Ключ задаётся снаружи (id ассета), поэтому без keyPath.
-      db.createObjectStore("blobs");
+      if (oldVersion < 3) {
+        const versions = db.createObjectStore("renderVersions", { keyPath: "id" });
+        versions.createIndex("by-project", "projectId");
+      }
     },
   });
 

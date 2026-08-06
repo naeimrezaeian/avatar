@@ -7,6 +7,7 @@ import {
   documentRepository,
   jobRepository,
   projectRepository,
+  renderVersionRepository,
   voiceRepository,
 } from "./local-repositories";
 import type { DataClient } from "./ports";
@@ -24,6 +25,7 @@ export const dataClient: DataClient = {
   consents: consentRepository,
   credits: creditRepository,
   jobs: jobRepository,
+  renderVersions: renderVersionRepository,
   generation: generationService,
 };
 
@@ -44,4 +46,5 @@ export const queryKeys = {
   creditAccount: ["credits", "account"] as const,
   creditTransactions: ["credits", "transactions"] as const,
   jobs: (projectId?: string) => ["jobs", projectId ?? "all"] as const,
+  renderVersions: (projectId?: string) => ["renderVersions", projectId ?? "all"] as const,
 };

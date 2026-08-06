@@ -5,6 +5,7 @@ import {
   CreditAccount,
   Project,
   ProjectDocument,
+  RenderVersion,
   Track,
   Voice,
   availableSeconds,
@@ -24,6 +25,7 @@ import {
   type JobRepository,
   type Patch,
   type ProjectRepository,
+  type RenderVersionRepository,
   type VoiceRepository,
 } from "./ports";
 import { abortQuietly } from "./tx";
@@ -401,6 +403,71 @@ export const jobRepository: JobRepository = {
   async get(id) {
     const db = await getDb();
     return (await db.get("jobs", id)) ?? null;
+  },
+};
+
+export const renderVersionRepository: RenderVersionRepository = {
+  async list(projectId) {
+    const db = await getDb();
+    const all =
+      projectId !== undefined
+        ? await db.getAllFromIndex("renderVersions", "by-project", projectId)
+        : await db.getAll("renderVersions");
+    return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  },
+
+  async get(id) {
+    const db = await getDb();
+    return (await db.get("renderVersions", id)) ?? null;
+  },
+
+  async share(id, expiresInDays) {
+    const db = await getDb();
+    const version = await db.get("renderVersions", id);
+    if (!version) throw new Error(`Версия ${id} не найдена`);
+
+    const expiresAt = new Date(Date.now() + expiresInDays * 86_400_000).toISOString();
+    // Токен непредсказуемый: ссылка на готовое видео с лицом и голосом
+    // пользователя не должна подбираться перебором.
+    const next = RenderVersion.parse({
+      ...version,
+      shareToken: crypto.randomUUID().replaceAll("-", ""),
+      shareExpiresAt: expiresAt,
+      updatedAt: nowIso(),
+    });
+    await db.put("renderVersions", next);
+    return next;
+  },
+
+  async revokeShare(id) {
+    const db = await getDb();
+    const version = await db.get("renderVersions", id);
+    if (!version) throw new Error(`Версия ${id} не найдена`);
+
+    const next = RenderVersion.parse({
+      ...version,
+      shareToken: null,
+      shareExpiresAt: null,
+      updatedAt: nowIso(),
+    });
+    await db.put("renderVersions", next);
+    return next;
+  },
+
+  async remove(id) {
+    const db = await getDb();
+    const version = await db.get("renderVersions", id);
+    if (!version) return;
+
+    // Вместе с версией удаляется её файл: иначе хранилище растёт от роликов,
+    // на которые уже ничто не ссылается.
+    const tx = db.transaction(["renderVersions", "assets", "blobs"], "readwrite");
+    const writes: Promise<unknown>[] = [tx.objectStore("renderVersions").delete(id), tx.done];
+    if (version.assetId) {
+      writes.push(tx.objectStore("assets").delete(version.assetId));
+      writes.push(tx.objectStore("blobs").delete(version.assetId));
+    }
+    await Promise.all(writes);
   },
 };
 

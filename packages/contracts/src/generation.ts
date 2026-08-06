@@ -53,6 +53,24 @@ export const JobError = z.object({
 });
 export type JobError = z.infer<typeof JobError>;
 
+export const ExportFormat = z.enum(['mp4', 'webm', 'mov']);
+export type ExportFormat = z.infer<typeof ExportFormat>;
+
+export const ExportSettings = z.object({
+  resolution: Resolution.default('1080p'),
+  fps: Fps.default(30),
+  format: ExportFormat.default('mp4'),
+  /**
+   * Дублирует соотношение сторон проекта. Хранится в настройках экспорта
+   * только для истории: менять его здесь нельзя, кадрирование задано проектом.
+   */
+  aspectRatio: AspectRatio,
+  burnSubtitles: z.boolean().default(false),
+  watermark: z.boolean().default(true),
+  audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).default(192),
+});
+export type ExportSettings = z.infer<typeof ExportSettings>;
+
 export const GenerationJob = z
   .object({
     id: Id,
@@ -70,6 +88,13 @@ export const GenerationJob = z
 
     resultAssetId: Id.nullable().default(null),
     error: JobError.nullable().default(null),
+
+    /**
+     * Настройки, с которыми запущен экспорт. Живут на задаче, а не рядом с ней:
+     * повтор упавшего экспорта должен собрать ролик ровно теми же параметрами,
+     * а после перезагрузки страницы их больше взять неоткуда.
+     */
+    exportSettings: ExportSettings.nullable().default(null),
 
     /** Позиция в очереди — для честного ожидания вместо бесконечного спиннера. */
     queuePosition: z.number().int().nonnegative().nullable().default(null),
@@ -99,24 +124,6 @@ export const JobEvent = z.object({
   at: IsoDateTime,
 });
 export type JobEvent = z.infer<typeof JobEvent>;
-
-export const ExportFormat = z.enum(['mp4', 'webm', 'mov']);
-export type ExportFormat = z.infer<typeof ExportFormat>;
-
-export const ExportSettings = z.object({
-  resolution: Resolution.default('1080p'),
-  fps: Fps.default(30),
-  format: ExportFormat.default('mp4'),
-  /**
-   * Дублирует соотношение сторон проекта. Хранится в настройках экспорта
-   * только для истории: менять его здесь нельзя, кадрирование задано проектом.
-   */
-  aspectRatio: AspectRatio,
-  burnSubtitles: z.boolean().default(false),
-  watermark: z.boolean().default(true),
-  audioBitrateKbps: z.union([z.literal(128), z.literal(192), z.literal(256)]).default(192),
-});
-export type ExportSettings = z.infer<typeof ExportSettings>;
 
 /**
  * Готовая версия ролика. Хранит revision документа, из которого собрана: без

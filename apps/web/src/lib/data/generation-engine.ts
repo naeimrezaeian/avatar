@@ -6,14 +6,15 @@ import {
   GenerationJob,
   JobEvent,
   ProjectDocument,
+  RenderVersion,
   Scene,
   availableSeconds,
   estimateCostSeconds,
   estimateSpeechDurationSec,
   videoInputHash,
   voiceoverInputHash,
+  type ExportSettings,
   type JobStage,
-  type Resolution,
 } from "@avatar/contracts";
 import { getDb, newId, nowIso } from "./db";
 import type { GenerationService } from "./ports";
@@ -379,6 +380,10 @@ async function completeJob(jobId: string, durationSec: number): Promise<void> {
     }
   }
 
+  if (job.kind === "export" && job.exportSettings !== null) {
+    await createRenderVersion(job, asset, durationSec);
+  }
+
   if (job.creditHoldId !== null) await settleHold(job.creditHoldId, "committed");
 
   await putJob(
@@ -389,6 +394,42 @@ async function completeJob(jobId: string, durationSec: number): Promise<void> {
       progressPct: 100,
       resultAssetId: asset.id,
       finishedAt: nowIso(),
+    }),
+  );
+}
+
+/**
+ * Готовая версия ролика. Номер считается по уже существующим версиям проекта,
+ * а ревизия документа сохраняется вместе с настройками: без неё «создать новую
+ * версию» и «вернуться к предыдущей» не имеют определённого смысла — непонятно,
+ * из какого состояния проекта собран каждый файл.
+ */
+async function createRenderVersion(
+  job: GenerationJob,
+  asset: Asset,
+  durationSec: number,
+): Promise<void> {
+  if (job.projectId === null || job.exportSettings === null) return;
+
+  const db = await getDb();
+  const existing = await db.getAllFromIndex("renderVersions", "by-project", job.projectId);
+  const document = await db.get("documents", job.projectId);
+
+  const timestamp = nowIso();
+  await db.put(
+    "renderVersions",
+    RenderVersion.parse({
+      id: newId("ver"),
+      projectId: job.projectId,
+      jobId: job.id,
+      versionNumber: existing.length + 1,
+      documentRevision: document?.revision ?? 0,
+      settings: job.exportSettings,
+      assetId: asset.id,
+      durationSec,
+      sizeBytes: asset.sizeBytes,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     }),
   );
 }
@@ -424,6 +465,7 @@ async function enqueue(input: {
   durationSec: number;
   costSeconds: number;
   shouldFail: boolean;
+  exportSettings?: ExportSettings;
 }): Promise<GenerationJob> {
   const jobId = newId("job");
   const hold = await holdCredits("usr_demo", jobId, input.costSeconds);
@@ -441,6 +483,7 @@ async function enqueue(input: {
       sceneId: input.sceneId,
       creditHoldId: hold?.id ?? null,
       estimatedCostSeconds: input.costSeconds,
+      exportSettings: input.exportSettings ?? null,
       queuePosition: 1,
       estimatedWaitSec: Math.round(input.durationSec / SPEED_FACTOR),
       createdAt: timestamp,
@@ -492,7 +535,7 @@ export const generationService: GenerationService = {
     });
   },
 
-  async startExport({ projectId, resolution }: { projectId: string; resolution: Resolution }) {
+  async startExport({ projectId, settings }) {
     const db = await getDb();
     const document = await db.get("documents", projectId);
     if (!document) throw new Error(`Документ проекта ${projectId} не найден`);
@@ -508,8 +551,9 @@ export const generationService: GenerationService = {
       projectId,
       sceneId: null,
       durationSec,
-      costSeconds: estimateCostSeconds(durationSec, resolution),
+      costSeconds: estimateCostSeconds(durationSec, settings.resolution),
       shouldFail: false,
+      exportSettings: settings,
     });
   },
 
@@ -552,7 +596,12 @@ export const generationService: GenerationService = {
     if (job.kind === "avatar_video" && job.sceneId !== null) {
       return generationService.startVideo({ projectId: job.projectId, sceneId: job.sceneId });
     }
-    return generationService.startExport({ projectId: job.projectId, resolution: "1080p" });
+    if (job.exportSettings === null) throw new Error("У задачи экспорта не сохранены настройки");
+    // Повтор собирает ролик ровно теми же параметрами, что и упавшая попытка.
+    return generationService.startExport({
+      projectId: job.projectId,
+      settings: job.exportSettings,
+    });
   },
 
   subscribe(listener) {

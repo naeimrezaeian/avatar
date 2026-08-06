@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Loader2, Plus, Trash2 } from "lucide-react";
 import {
   Scene,
   isJobActive,
@@ -23,10 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ExportDialog, projectDurationSec } from "./export-dialog";
 import { SceneEditor } from "./scene-editor";
 
 export function WorkspaceClient({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const session = useEditorSession(projectId);
   useUndoShortcuts();
@@ -173,7 +175,23 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           </p>
         </div>
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
+        <Button
+          onClick={() => setExportOpen(true)}
+          disabled={projectDurationSec(document) === 0}
+          className="bg-gradient-accent text-white hover:opacity-90"
+        >
+          <Download className="size-4" />
+          Экспорт
+        </Button>
       </div>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        projectId={projectId}
+        aspectRatio={document.aspectRatio}
+        durationSec={projectDurationSec(document)}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr_minmax(0,380px)]">
         <Card className="h-fit">

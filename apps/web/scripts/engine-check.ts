@@ -105,6 +105,73 @@ async function main() {
   }
   check("повторное сохранение старой ревизии отклонено", conflict);
 
+  // --- Экспорт ---
+  const exportDoc = await dataClient.documents.get(PROJECT);
+  const trackId = exportDoc!.trackOrder[0]!;
+  await dataClient.documents.save(
+    {
+      ...exportDoc!,
+      clips: {
+        c_export: {
+          kind: "audio" as const,
+          id: "c_export",
+          trackId,
+          assetId: scene1.voiceoverAssetId!,
+          sceneId: null,
+          startSec: 0,
+          durationSec: 12,
+          sourceInSec: 0,
+          audio: { volumePct: 100, fadeInSec: 0, fadeOutSec: 0, muted: false },
+        },
+      },
+    },
+    exportDoc!.revision,
+  );
+
+  const beforeExport = await dataClient.credits.getAccount("usr_demo");
+  const exportJob = await dataClient.generation.startExport({
+    projectId: PROJECT,
+    settings: {
+      resolution: "720p",
+      fps: 30,
+      format: "mp4",
+      aspectRatio: "16:9",
+      burnSubtitles: false,
+      watermark: true,
+      audioBitrateKbps: 192,
+    },
+  });
+  check("настройки экспорта сохранены на задаче", exportJob.exportSettings?.resolution === "720p");
+
+  const exportStatus = await waitForJob(exportJob.id);
+  check("экспорт завершился успешно", exportStatus === "succeeded", exportStatus);
+
+  const versions = await dataClient.renderVersions.list(PROJECT);
+  check("создана версия ролика", versions.length === 1, `версий: ${versions.length}`);
+  check("номер версии начинается с единицы", versions[0]?.versionNumber === 1);
+  check("версия помнит ревизию документа", (versions[0]?.documentRevision ?? -1) >= 0);
+  check("версия сохранила настройки", versions[0]?.settings.format === "mp4");
+
+  const afterExport = await dataClient.credits.getAccount("usr_demo");
+  check(
+    "экспорт списал стоимость",
+    afterExport.balanceSeconds === beforeExport.balanceSeconds - exportJob.estimatedCostSeconds,
+  );
+
+  const shared = await dataClient.renderVersions.share(versions[0]!.id, 7);
+  check("ссылка выдана с токеном", (shared.shareToken?.length ?? 0) >= 32);
+  check("у ссылки есть срок действия", shared.shareExpiresAt !== null);
+
+  const revoked = await dataClient.renderVersions.revokeShare(versions[0]!.id);
+  check("ссылка отозвана", revoked.shareToken === null && revoked.shareExpiresAt === null);
+
+  await dataClient.renderVersions.remove(versions[0]!.id);
+  check("версия удалена", (await dataClient.renderVersions.list(PROJECT)).length === 0);
+  check(
+    "файл версии удалён вместе с ней",
+    (await dataClient.assets.get(shared.assetId!)) === null,
+  );
+
   // --- Нехватка кредитов ---
   const account = await dataClient.credits.getAccount("usr_demo");
   const drained = { ...account, balanceSeconds: 1 };
