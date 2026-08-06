@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <Button
-              nativeButton={false} render={<Link href="/projects/new" />}
+              nativeButton={false} role="link" render={<Link href="/projects/new" />}
               className="bg-gradient-accent hidden text-white shadow-soft hover:opacity-90 sm:inline-flex"
             >
               <Plus className="size-4" />

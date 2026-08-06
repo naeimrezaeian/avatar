@@ -48,7 +48,7 @@ export function RegisterForm() {
             </p>
           </div>
           <PendingEmailNotice email={pending} />
-          <Button variant="ghost" nativeButton={false} render={<Link href="/login" />} className="w-full">
+          <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/login" />} className="w-full">
             К странице входа
           </Button>
         </CardContent>

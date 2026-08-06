@@ -120,6 +120,8 @@ export function PodcastForm() {
         aspectRatio: brief.aspectRatio,
         avatarId: brief.host.avatarId,
         voiceId: brief.host.voiceId,
+        format: "podcast",
+        participantAvatarIds: [brief.host.avatarId, brief.guest.avatarId],
       });
       await dataClient.projects.update(project.id, {
         description: `Подкаст: ${brief.host.displayName} и ${brief.guest.displayName}`,
@@ -145,7 +147,7 @@ export function PodcastForm() {
 
       return project;
     },
-    onSuccess: (project) => router.push(`/projects/${project.id}`),
+    onSuccess: (project) => router.push(`/podcast/${project.id}`),
   });
 
   const costSeconds = estimateCostSeconds(podcastDurationSec(lengthMinutes), resolution);
@@ -407,7 +409,7 @@ export function PodcastForm() {
         </div>
 
         <div className="ml-auto flex gap-2">
-          <Button variant="ghost" nativeButton={false} render={<Link href="/projects" />}>
+          <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/projects" />}>
             Отмена
           </Button>
           <Button

@@ -78,7 +78,7 @@ export function ProjectsClient() {
         </div>
 
         <Button
-          nativeButton={false} render={<Link href="/projects/new" />}
+          nativeButton={false} role="link" render={<Link href="/projects/new" />}
           className="bg-gradient-accent text-white hover:opacity-90"
         >
           <Plus className="size-4" />
@@ -287,7 +287,7 @@ function EmptyState({ scope, hasSearch }: { scope: Scope; hasSearch: boolean }) 
         видео.
       </p>
       <Button
-        nativeButton={false} render={<Link href="/projects/new" />}
+        nativeButton={false} role="link" render={<Link href="/projects/new" />}
         className="bg-gradient-accent mt-5 text-white hover:opacity-90"
       >
         <Plus className="size-4" />

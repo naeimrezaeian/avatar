@@ -34,7 +34,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
             В адресе нет кода подтверждения. Откройте ссылку из письма целиком или запросите
             новую.
           </p>
-          <Button nativeButton={false} render={<Link href="/forgot-password" />} className="w-full">
+          <Button nativeButton={false} role="link" render={<Link href="/forgot-password" />} className="w-full">
             Запросить новую ссылку
           </Button>
         </CardContent>

@@ -65,6 +65,8 @@ export interface ProjectRepository {
     aspectRatio: Project["aspectRatio"];
     avatarId: string | null;
     voiceId: string | null;
+    format?: Project["format"];
+    participantAvatarIds?: string[];
   }): Promise<Project>;
   update(id: string, patch: Patch<Project>): Promise<Project>;
   duplicate(id: string): Promise<Project>;

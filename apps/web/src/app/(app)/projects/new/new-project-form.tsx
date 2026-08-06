@@ -145,7 +145,7 @@ export function NewProjectForm() {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" nativeButton={false} render={<Link href="/projects" />}>
+        <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/projects" />}>
           Отмена
         </Button>
         <Button

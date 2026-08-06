@@ -181,6 +181,9 @@ export const projectRepository: ProjectRepository = {
       userId: "usr_demo",
       title: input.title,
       aspectRatio: input.aspectRatio,
+      format: input.format ?? "standard",
+      participantAvatarIds:
+        input.participantAvatarIds ?? (input.avatarId ? [input.avatarId] : []),
       createdAt: timestamp,
       updatedAt: timestamp,
     });

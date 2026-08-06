@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
-import { PodcastForm } from "./podcast-form";
+import { PodcastList } from "./podcast-list";
 
-export const metadata: Metadata = { title: "Видеоподкаст" };
+export const metadata: Metadata = { title: "Видеоподкасты" };
 
 export default function PodcastPage() {
   return (
     <>
       <PageHeader
-        title="Видеоподкаст"
-        description="Разговор двух аватаров: ведущий и гость. Реплики становятся сценами обычного проекта."
+        title="Видеоподкасты"
+        description="Разговоры двух аватаров. Откройте выпуск, чтобы посмотреть готовое видео."
       />
-      <PodcastForm />
+      <PodcastList />
     </>
   );
 }

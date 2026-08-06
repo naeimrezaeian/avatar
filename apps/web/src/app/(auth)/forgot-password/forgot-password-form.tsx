@@ -50,7 +50,7 @@ export function ForgotPasswordForm() {
 
             {pending ? <PendingEmailNotice email={pending} /> : null}
 
-            <Button variant="ghost" nativeButton={false} render={<Link href="/login" />} className="w-full">
+            <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/login" />} className="w-full">
               К странице входа
             </Button>
           </div>
@@ -83,7 +83,7 @@ export function ForgotPasswordForm() {
               Отправить ссылку
             </Button>
 
-            <Button variant="ghost" nativeButton={false} render={<Link href="/login" />} className="w-full">
+            <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/login" />} className="w-full">
               Вернуться ко входу
             </Button>
           </form>

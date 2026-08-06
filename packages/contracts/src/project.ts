@@ -95,6 +95,14 @@ export const ProjectStatus = z.enum(['draft', 'archived']);
 export type ProjectStatus = z.infer<typeof ProjectStatus>;
 
 /**
+ * Формат проекта. Подкаст остаётся обычным проектом по устройству, но списки и
+ * карточки для него другие, а определять формат перебором сцен нельзя: тогда
+ * список проектов пришлось бы собирать, загрузив документ каждого.
+ */
+export const ProjectFormat = z.enum(['standard', 'podcast']);
+export type ProjectFormat = z.infer<typeof ProjectFormat>;
+
+/**
  * Карточка проекта для списков. Отделена от документа: страница со списком
  * проектов не должна тянуть сцены и клипы каждого из них.
  */
@@ -111,6 +119,12 @@ export const Project = z
     aspectRatio: AspectRatio,
     defaultResolution: Resolution.default('720p'),
     coverAssetId: Id.nullable().default(null),
+    format: ProjectFormat.default('standard'),
+    /**
+     * Кто появляется в проекте. Нужно карточке в списке: подгружать документ
+     * ради двух лиц — значит читать всё содержимое проекта на каждую плитку.
+     */
+    participantAvatarIds: z.array(Id).default([]),
     status: ProjectStatus.default('draft'),
     isTemplate: z.boolean().default(false),
     /** Кэш длительности для карточки; источник истины — документ. */

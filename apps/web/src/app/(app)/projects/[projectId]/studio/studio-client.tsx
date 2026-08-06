@@ -153,6 +153,7 @@ export function StudioClient({ projectId }: { projectId: string }) {
           variant="ghost"
           size="icon"
           nativeButton={false}
+          role="link"
           render={<Link href={`/projects/${projectId}`} />}
           aria-label="К обычному редактору"
         >
@@ -167,6 +168,7 @@ export function StudioClient({ projectId }: { projectId: string }) {
         <Button
           variant="secondary"
           nativeButton={false}
+          role="link"
           render={<Link href={`/projects/${projectId}`} />}
         >
           Временная шкала
