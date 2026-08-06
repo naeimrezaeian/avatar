@@ -8,7 +8,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       // Тема у платформы одна, поэтому она задана прямо, а не считывается из
       // провайдера оформления, которого больше нет.
-      theme="dark"
+      theme="light"
       className="toaster group"
       icons={{
         success: (

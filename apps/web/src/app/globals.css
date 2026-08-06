@@ -3,13 +3,10 @@
 @import "shadcn/tailwind.css";
 
 /*
- * У платформы одна тема — тёмно-зелёная. Вариант оформления не переключается,
- * поэтому светлой палитры здесь нет вовсе.
- *
- * Класс dark на <html> остаётся закреплённым: компоненты shadcn содержат
- * готовые правила с префиксом dark:, рассчитанные на тёмный фон. Без этого
- * класса они не применялись бы, и поля с всплывающими панелями пришлось бы
- * переписывать вручную.
+ * У платформы одна тема — светлая. Вариант оформления не переключается, поэтому
+ * тёмной палитры здесь нет вовсе, а класс dark на <html> не ставится: правила
+ * компонентов с префиксом dark: рассчитаны на тёмный фон и здесь только
+ * помешали бы.
  */
 @custom-variant dark (&:is(.dark *));
 
@@ -51,12 +48,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
+  --color-card-hover: var(--card-hover);
   --color-card: var(--card);
 
-  /* Акцентный градиент. Вынесен в токены, чтобы переход не расползался по
-     компонентам разными парами цветов. */
   --color-grad-from: var(--grad-from);
-  --color-grad-via: var(--grad-via);
   --color-grad-to: var(--grad-to);
 
   /* Цвета дорожек таймлайна. Дорожек восемь, и различать их надо мгновенно,
@@ -97,83 +92,86 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Тени на тёмном фоне строятся чернотой, а не затемнением цвета: цветная
-     тень на тёмно-зелёном превращается в грязное пятно. */
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.35), 0 8px 24px oklch(0 0 0 / 0.3);
-  --shadow-soft-lg: 0 2px 4px oklch(0 0 0 / 0.4), 0 16px 48px oklch(0 0 0 / 0.45);
+  /* Тени построены цветом основного текста, а не чистым чёрным: серая тень на
+     голубоватом фоне выглядит грязной. */
+  --shadow-soft: 0 1px 2px rgb(23 32 51 / 0.04), 0 8px 24px rgb(23 32 51 / 0.06);
+  --shadow-soft-lg: 0 2px 4px rgb(23 32 51 / 0.06), 0 16px 48px rgb(23 32 51 / 0.1);
 }
 
 :root {
-  /* Основа — тёмный зелёный, но не угольный: при слишком низкой светлоте
-     интерфейс читается как мрачный, а разница между поверхностями пропадает.
-     Поверхности отличаются от фона светлотой, а не рамками: на тёмном фоне
-     рамки читаются как грязь. */
-  --background: oklch(0.215 0.022 165);
-  --foreground: oklch(0.95 0.012 150);
-  --card: oklch(0.26 0.026 165);
-  --card-foreground: oklch(0.95 0.012 150);
-  --popover: oklch(0.285 0.028 165);
-  --popover-foreground: oklch(0.95 0.012 150);
+  --background: #f4f7fb;
+  --foreground: #172033;
 
-  --primary: oklch(0.76 0.16 158);
-  --primary-foreground: oklch(0.18 0.03 165);
-  --secondary: oklch(0.32 0.032 165);
-  --secondary-foreground: oklch(0.95 0.012 150);
-  --muted: oklch(0.305 0.028 165);
-  --muted-foreground: oklch(0.78 0.026 155);
-  --accent: oklch(0.365 0.058 160);
-  --accent-foreground: oklch(0.93 0.06 155);
+  --card: #ffffff;
+  --card-foreground: #172033;
+  /* Отдельный оттенок для наведения на карточку: поднимать её только тенью
+     недостаточно — при плотной сетке разница почти не читается. */
+  --card-hover: #f8fafd;
 
-  --destructive: oklch(0.66 0.19 25);
-  --success: oklch(0.76 0.16 150);
-  --warning: oklch(0.81 0.14 85);
+  --popover: #ffffff;
+  --popover-foreground: #172033;
 
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.68 0.15 158);
+  --primary: #5068e8;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2f8;
+  --secondary-foreground: #172033;
+  --muted: #f4f7fb;
+  --muted-foreground: #697386;
+  /* Подсветка выбранного и наведённого — разбавленный основной акцент: так
+     активный пункт остаётся узнаваемо фирменным, не превращаясь в кнопку. */
+  --accent: #e8edfd;
+  --accent-foreground: #2f42b5;
 
-  /* Акцент — переход внутри зелёного: от травяного к бирюзовому. */
-  --grad-from: oklch(0.68 0.17 148);
-  --grad-via: oklch(0.73 0.15 168);
-  --grad-to: oklch(0.78 0.12 192);
+  --destructive: #dc2626;
+  --success: #0e9488;
+  --warning: #c2760a;
 
-  /* Цвета показателей проверены скриптом валидации палитры из правил
-     визуализации: полоса светлоты для тёмной темы, порог насыщенности,
-     различимость при дальтонизме и контраст к поверхности. Менять их на глаз
-     нельзя — только повторной проверкой. */
-  --chart-available: #059669;
-  --chart-reserved: #0284c7;
+  --border: #e3e8f0;
+  --input: #e3e8f0;
+  --ring: #5068e8;
 
-  --chart-1: oklch(0.7 0.15 150);
-  --chart-2: oklch(0.72 0.13 175);
-  --chart-3: oklch(0.74 0.12 195);
-  --chart-4: oklch(0.78 0.14 120);
-  --chart-5: oklch(0.81 0.14 85);
+  /* Фирменный градиент по спецификации: основной акцент к дополнительному. */
+  --grad-from: #5068e8;
+  --grad-to: #15b8a6;
 
-  /* Дорожки таймлайна остаются разноцветными: их задача — различаться с
-     первого взгляда, и подгонка под одну гамму эту задачу ломает. Оттенки
-     подобраны так, чтобы держать контраст на тёмно-зелёном фоне. */
-  --track-video: oklch(0.66 0.14 210);
-  --track-avatar: oklch(0.7 0.15 150);
-  --track-image: oklch(0.72 0.12 190);
-  --track-text: oklch(0.75 0.12 120);
-  --track-voiceover: oklch(0.72 0.15 165);
-  --track-music: oklch(0.79 0.14 95);
-  --track-sfx: oklch(0.76 0.15 55);
-  --track-subtitle: oklch(0.68 0.11 320);
+  /* Цвета сегментов диаграмм проверены скриптом валидации палитры из правил
+     визуализации: полоса светлоты, порог насыщенности, различимость при
+     дальтонизме и контраст к белой поверхности. Это чуть притемнённые варианты
+     фирменных: сам #15b8a6 даёт к белому лишь 2.49:1 и на данных читался бы
+     хуже. Менять их на глаз нельзя — только повторной проверкой. */
+  --chart-available: #4055c8;
+  --chart-reserved: #0e9488;
+
+  --chart-1: #4055c8;
+  --chart-2: #0e9488;
+  --chart-3: #0284c7;
+  --chart-4: #7c3aed;
+  --chart-5: #c2760a;
+
+  /* Дорожки таймлайна: насыщенные тона, на которых белая подпись клипа
+     остаётся читаемой. Различаться они должны с первого взгляда, поэтому под
+     одну гамму не подгоняются. */
+  --track-video: #2563eb;
+  --track-avatar: #5068e8;
+  --track-image: #0284c7;
+  --track-text: #7c3aed;
+  --track-voiceover: #0e9488;
+  --track-music: #c2760a;
+  --track-sfx: #db2777;
+  --track-subtitle: #4d7c0f;
 
   --radius: 0.875rem;
 
-  /* Навигация темнее основного фона: так панель отделяется от содержимого без
-     разделительной линии. */
-  --sidebar: oklch(0.165 0.02 165);
-  --sidebar-foreground: oklch(0.93 0.014 150);
-  --sidebar-primary: oklch(0.68 0.15 158);
-  --sidebar-primary-foreground: oklch(0.14 0.02 165);
-  --sidebar-accent: oklch(0.285 0.038 165);
-  --sidebar-accent-foreground: oklch(0.96 0.02 150);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.68 0.15 158);
+  /* Панель навигации белая, как карточки: от фона её отделяет граница, а не
+     заливка. */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #5068e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8edfd;
+  --sidebar-accent-foreground: #2f42b5;
+  --sidebar-border: #e3e8f0;
+  --sidebar-ring: #5068e8;
 }
 
 @layer base {
@@ -185,7 +183,7 @@
   }
   html {
     @apply font-sans;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   /* Плавные анимации, но не для тех, кому они мешают. */
@@ -203,21 +201,11 @@
 
 @layer utilities {
   .bg-gradient-accent {
-    background-image: linear-gradient(
-      110deg,
-      var(--grad-from) 0%,
-      var(--grad-via) 50%,
-      var(--grad-to) 100%
-    );
+    background-image: linear-gradient(135deg, var(--grad-from), var(--grad-to));
   }
 
   .text-gradient-accent {
-    background-image: linear-gradient(
-      110deg,
-      var(--grad-from) 0%,
-      var(--grad-via) 50%,
-      var(--grad-to) 100%
-    );
+    background-image: linear-gradient(135deg, var(--grad-from), var(--grad-to));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;

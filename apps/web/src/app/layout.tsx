@@ -26,16 +26,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1712",
+  themeColor: "#f4f7fb",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ru"
-      // Класс dark закреплён: тема одна, и правила компонентов с префиксом
-      // dark: рассчитаны именно на тёмный фон.
-      className={`dark ${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
     >
       {/* Высота задана единицами вьюпорта, а не процентами: процент считается от
           высоты родителя, а она здесь auto — цепочка не разрешается, и блоки

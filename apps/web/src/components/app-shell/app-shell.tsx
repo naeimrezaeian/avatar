@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           панель. Ширина меняется плавно, поэтому перекомпоновка справа не
           выглядит рывком. Раскрытие идёт и по фокусу — с клавиатуры панель тоже
           должна открываться. */}
-      <aside className="group/sidebar bg-sidebar sticky top-0 hidden h-dvh w-16 shrink-0 flex-col gap-6 overflow-x-hidden p-2 transition-all duration-300 ease-out hover:w-64 hover:p-4 focus-within:w-64 focus-within:p-4 lg:flex">
+      <aside className="group/sidebar bg-sidebar border-sidebar-border sticky top-0 border-r hidden h-dvh w-16 shrink-0 flex-col gap-6 overflow-x-hidden p-2 transition-all duration-300 ease-out hover:w-64 hover:p-4 focus-within:w-64 focus-within:p-4 lg:flex">
         <Brand className="px-1 pt-1" collapsible />
         <div className="flex-1 overflow-x-hidden overflow-y-auto">
           <SidebarNav role={user.role} collapsible />
