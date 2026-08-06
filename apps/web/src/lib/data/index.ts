@@ -1,3 +1,4 @@
+import { adminRepository } from "./admin-repository";
 import { generationService } from "./generation-engine";
 import {
   assetRepository,
@@ -26,6 +27,7 @@ export const dataClient: DataClient = {
   credits: creditRepository,
   jobs: jobRepository,
   renderVersions: renderVersionRepository,
+  admin: adminRepository,
   generation: generationService,
 };
 
@@ -47,4 +49,7 @@ export const queryKeys = {
   creditTransactions: ["credits", "transactions"] as const,
   jobs: (projectId?: string) => ["jobs", projectId ?? "all"] as const,
   renderVersions: (projectId?: string) => ["renderVersions", projectId ?? "all"] as const,
+  adminStats: ["admin", "stats"] as const,
+  adminUsers: ["admin", "users"] as const,
+  adminJobs: ["admin", "jobs"] as const,
 };

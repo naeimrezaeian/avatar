@@ -12,6 +12,7 @@ import type {
   ProjectDocument,
   RenderVersion,
   Resolution,
+  User,
   Voice,
 } from "@avatar/contracts";
 
@@ -151,6 +152,51 @@ export interface RenderVersionRepository {
   remove(id: string): Promise<void>;
 }
 
+/** Сводка для панели администратора (п.11 ТЗ). */
+export type AdminStats = {
+  usersTotal: number;
+  usersActive: number;
+  usersBlocked: number;
+  avatarsTotal: number;
+  avatarsReady: number;
+  projectsTotal: number;
+  rendersTotal: number;
+  jobsActive: number;
+  jobsFailed: number;
+  generatedSeconds: number;
+  spentSeconds: number;
+  grantedSeconds: number;
+};
+
+export type AdminUserRow = {
+  user: User;
+  account: CreditAccount | null;
+  projectCount: number;
+  avatarCount: number;
+  spentSeconds: number;
+};
+
+export interface AdminRepository {
+  stats(): Promise<AdminStats>;
+  listUsers(): Promise<AdminUserRow[]>;
+  setRole(userId: string, role: User["role"]): Promise<User>;
+  setStatus(userId: string, status: User["status"]): Promise<User>;
+  /**
+   * Ручная корректировка баланса. Положительное значение начисляет,
+   * отрицательное списывает. Пишется транзакция с автором операции — история
+   * начислений без указания, кто их сделал, бесполезна при разборе спорных
+   * случаев.
+   */
+  adjustCredits(input: {
+    userId: string;
+    deltaSeconds: number;
+    note: string;
+    actorUserId: string;
+  }): Promise<CreditAccount>;
+  /** Очередь генерации по всем пользователям. */
+  listJobs(filter?: { active?: boolean }): Promise<GenerationJob[]>;
+}
+
 export interface DataClient {
   avatars: AvatarRepository;
   voices: VoiceRepository;
@@ -161,5 +207,6 @@ export interface DataClient {
   credits: CreditRepository;
   jobs: JobRepository;
   renderVersions: RenderVersionRepository;
+  admin: AdminRepository;
   generation: GenerationService;
 }
