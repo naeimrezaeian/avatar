@@ -6,6 +6,7 @@ import {
   CreditTransaction,
   Project,
   ProjectDocument,
+  Plan,
   Scene,
   User,
   Track,
@@ -203,6 +204,49 @@ export async function seedIfEmpty(): Promise<void> {
   const salt = generateSalt();
   const passwordHash = await hashPassword(DEMO_CREDENTIALS.password, salt);
 
+  // Тарифы по умолчанию. Цены в копейках, чтобы не хранить дробные суммы.
+  const plans = [
+    Plan.parse({
+      id: "plan_free",
+      name: "Пробный",
+      description: "Знакомство с платформой",
+      monthlySeconds: 300,
+      maxResolution: "720p",
+      maxProjects: 3,
+      maxAvatars: 1,
+      watermark: true,
+      priceMinor: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+    Plan.parse({
+      id: "plan_pro",
+      name: "Профессиональный",
+      description: "Для регулярной работы с видео",
+      monthlySeconds: 2700,
+      maxResolution: "1080p",
+      maxProjects: 50,
+      maxAvatars: 10,
+      watermark: false,
+      priceMinor: 490000,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+    Plan.parse({
+      id: "plan_studio",
+      name: "Студия",
+      description: "Без ограничений по числу проектов",
+      monthlySeconds: 9000,
+      maxResolution: "1080p",
+      maxProjects: null,
+      maxAvatars: null,
+      watermark: false,
+      priceMinor: 1490000,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }),
+  ];
+
   const tx = db.transaction(
     [
       "users",
@@ -215,6 +259,7 @@ export async function seedIfEmpty(): Promise<void> {
       "documents",
       "creditAccounts",
       "creditTransactions",
+      "plans",
     ],
     "readwrite",
   );
@@ -233,6 +278,7 @@ export async function seedIfEmpty(): Promise<void> {
     tx.objectStore("documents").put(document),
     tx.objectStore("creditAccounts").put(account),
     tx.objectStore("creditTransactions").put(grant),
+    ...plans.map((plan) => tx.objectStore("plans").put(plan)),
     tx.done,
   ]);
 }

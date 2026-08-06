@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/page-header";
+import { PageHeader } from "@/components/page-header";
+import { BillingClient } from "./billing-client";
 
 export const metadata: Metadata = { title: "Тариф и кредиты" };
 
 export default function BillingPage() {
   return (
-    <PagePlaceholder
-      title="Тариф и кредиты"
-      description="Кредиты измеряются в минутах генерации. Резерв под запущенные задачи показан отдельно от баланса."
-      planned={[
-        "Баланс, резерв и срок действия кредитов",
-        "История начислений, списаний и возвратов",
-        "Стоимость генерации по разрешениям",
-        "Тарифные планы и их ограничения",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Тариф и кредиты"
+        description="Баланс, резерв под запущенными задачами, стоимость генерации и история операций."
+      />
+      <BillingClient />
+    </>
   );
 }

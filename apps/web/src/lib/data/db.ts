@@ -10,7 +10,11 @@ import type {
   Project,
   ProjectDocument,
   RenderVersion,
+  Notification,
+  Plan,
   Session,
+  SystemLogEntry,
+  SystemSettings,
   User,
   VerificationToken,
   Voice,
@@ -80,10 +84,19 @@ export interface AvatarDB extends DBSchema {
     value: VerificationToken;
     indexes: { "by-user": string };
   };
+  plans: { key: string; value: Plan };
+  notifications: {
+    key: string;
+    value: Notification;
+    indexes: { "by-user": string };
+  };
+  systemLog: { key: string; value: SystemLogEntry };
+  /** Настройки платформы одной записью с ключом "system". */
+  settings: { key: string; value: SystemSettings };
 }
 
 const DB_NAME = "avatar-studio";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBPDatabase<AvatarDB>> | null = null;
 
@@ -144,6 +157,16 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
 
         const tokens = db.createObjectStore("verificationTokens", { keyPath: "id" });
         tokens.createIndex("by-user", "userId");
+      }
+
+      if (oldVersion < 5) {
+        db.createObjectStore("plans", { keyPath: "id" });
+
+        const notifications = db.createObjectStore("notifications", { keyPath: "id" });
+        notifications.createIndex("by-user", "userId");
+
+        db.createObjectStore("systemLog", { keyPath: "id" });
+        db.createObjectStore("settings", { keyPath: "id" });
       }
     },
 

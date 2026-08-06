@@ -14,6 +14,9 @@ const TABS: Array<{ href: Route; label: string }> = [
   { href: "/admin", label: "Сводка" },
   { href: "/admin/users", label: "Пользователи" },
   { href: "/admin/queue", label: "Очередь генерации" },
+  { href: "/admin/plans", label: "Тарифы" },
+  { href: "/admin/settings", label: "Настройки" },
+  { href: "/admin/logs", label: "Журнал" },
 ];
 
 /**

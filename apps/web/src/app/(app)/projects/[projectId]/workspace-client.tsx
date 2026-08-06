@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookmarkPlus, Captions, CheckCircle2, Download, Loader2, Plus, Trash2 } from "lucide-react";
 import {
   Scene,
   isJobActive,
@@ -15,6 +15,7 @@ import { dataClient, queryKeys } from "@/lib/data";
 import { newId } from "@/lib/data/db";
 import { useEditorStore } from "@/lib/editor/store";
 import { syncSceneClips } from "@/lib/editor/operations";
+import { syncSceneSubtitles } from "@/lib/editor/subtitles";
 import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-session";
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
 import { PreviewPlayer } from "@/components/preview/preview-player";
@@ -175,6 +176,31 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           </p>
         </div>
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
+        <Button
+          variant="secondary"
+          onClick={() => {
+            if (!scene || scene.durationSec === null) return;
+            apply((draft) => syncSceneSubtitles(draft, scene), { label: "Субтитры сцены" });
+          }}
+          disabled={!scene || scene.durationSec === null}
+          title={
+            scene?.durationSec === null
+              ? "Сначала синтезируйте озвучку: без неё неизвестно время реплик"
+              : undefined
+          }
+        >
+          <Captions className="size-4" />
+          Субтитры
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            void dataClient.projects.update(projectId, { isTemplate: true });
+          }}
+        >
+          <BookmarkPlus className="size-4" />
+          Как шаблон
+        </Button>
         <Button
           onClick={() => setExportOpen(true)}
           disabled={projectDurationSec(document) === 0}

@@ -1,4 +1,10 @@
 import { adminRepository } from "./admin-repository";
+import {
+  logRepository,
+  notificationRepository,
+  planRepository,
+  settingsRepository,
+} from "./system-repository";
 import { generationService } from "./generation-engine";
 import {
   assetRepository,
@@ -28,6 +34,10 @@ export const dataClient: DataClient = {
   jobs: jobRepository,
   renderVersions: renderVersionRepository,
   admin: adminRepository,
+  notifications: notificationRepository,
+  logs: logRepository,
+  plans: planRepository,
+  settings: settingsRepository,
   generation: generationService,
 };
 
@@ -52,4 +62,9 @@ export const queryKeys = {
   adminStats: ["admin", "stats"] as const,
   adminUsers: ["admin", "users"] as const,
   adminJobs: ["admin", "jobs"] as const,
+  notifications: ["notifications"] as const,
+  unreadCount: ["notifications", "unread"] as const,
+  logs: ["admin", "logs"] as const,
+  plans: ["plans"] as const,
+  settings: ["settings"] as const,
 };

@@ -19,6 +19,7 @@ import {
 import { getDb, newId, nowIso } from "./db";
 import type { GenerationService } from "./ports";
 import { createSyntheticSpeechWav, syntheticPeaks } from "./synthetic-audio";
+import { logRepository, notificationRepository } from "./system-repository";
 import { abortQuietly } from "./tx";
 
 /**
@@ -33,6 +34,12 @@ const SPEED_FACTOR = 40;
 /** Маркер в тексте сцены, гарантированно роняющий задачу. Нужен, чтобы
  *  разрабатывать сценарий ошибки, не полагаясь на случайность. */
 const FAILURE_MARKER = "#ошибка";
+
+const JOB_TITLES: Record<GenerationJob["kind"], { label: string; done: string }> = {
+  tts: { label: "Озвучивание", done: "Озвучка готова" },
+  avatar_video: { label: "Видео аватара", done: "Видео сцены готово" },
+  export: { label: "Экспорт", done: "Видео экспортировано" },
+};
 
 const STAGE_SEQUENCE: Record<GenerationJob["kind"], JobStage[]> = {
   tts: ["waiting", "synthesizing_speech", "done"],
@@ -386,6 +393,26 @@ async function completeJob(jobId: string, durationSec: number): Promise<void> {
 
   if (job.creditHoldId !== null) await settleHold(job.creditHoldId, "committed");
 
+  // Уведомление и журнал пишутся после расчёта по кредитам: если списание
+  // упадёт, пользователь не должен получить сообщение об успехе.
+  await notificationRepository.create({
+    userId: job.userId,
+    kind: "job_succeeded",
+    title: JOB_TITLES[job.kind].done,
+    body:
+      job.kind === "export"
+        ? "Ролик собран и доступен в библиотеке готовых видео."
+        : "Результат добавлен в проект.",
+    href: job.kind === "export" ? "/videos" : job.projectId ? `/projects/${job.projectId}` : null,
+  });
+  await logRepository.write({
+    level: "info",
+    scope: "generation",
+    message: `${JOB_TITLES[job.kind].label}: задача выполнена`,
+    actorUserId: job.userId,
+    targetId: job.id,
+  });
+
   await putJob(
     GenerationJob.parse({
       ...job,
@@ -440,6 +467,21 @@ async function failJob(jobId: string): Promise<void> {
   if (!job) return;
 
   if (job.creditHoldId !== null) await settleHold(job.creditHoldId, "released");
+
+  await notificationRepository.create({
+    userId: job.userId,
+    kind: "job_failed",
+    title: `${JOB_TITLES[job.kind].label}: ошибка`,
+    body: "Кредиты возвращены на счёт. Задачу можно перезапустить.",
+    href: job.projectId ? `/projects/${job.projectId}` : "/history",
+  });
+  await logRepository.write({
+    level: "error",
+    scope: "generation",
+    message: `${JOB_TITLES[job.kind].label}: задача завершилась ошибкой`,
+    actorUserId: job.userId,
+    targetId: job.id,
+  });
 
   await putJob(
     GenerationJob.parse({

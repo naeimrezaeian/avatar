@@ -4,13 +4,14 @@ import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { CreditAccount } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useSession } from "@/lib/auth/session-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Brand } from "./brand";
+import { NotificationBell } from "./notification-bell";
 import { CreditMeter } from "./credit-meter";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
@@ -77,14 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Plus className="size-4" />
               Новый проект
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              render={<Link href="/notifications" />}
-              aria-label="Уведомления"
-            >
-              <Bell className="size-4" />
-            </Button>
+            <NotificationBell userId={user.id} />
             <ThemeToggle />
             <UserMenu user={user} />
           </div>

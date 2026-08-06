@@ -208,5 +208,9 @@ export interface DataClient {
   jobs: JobRepository;
   renderVersions: RenderVersionRepository;
   admin: AdminRepository;
+  notifications: typeof import("./system-repository").notificationRepository;
+  logs: typeof import("./system-repository").logRepository;
+  plans: typeof import("./system-repository").planRepository;
+  settings: typeof import("./system-repository").settingsRepository;
   generation: GenerationService;
 }
