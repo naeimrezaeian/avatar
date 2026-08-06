@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { PagePlaceholder } from "@/components/page-header";
+import { PageHeader } from "@/components/page-header";
+import { DashboardClient } from "./dashboard-client";
 
 export const metadata: Metadata = { title: "Обзор" };
 
 export default function DashboardPage() {
   return (
-    <PagePlaceholder
-      title="Обзор"
-      description="Личный кабинет: последние проекты, состояние аватаров и остаток кредитов."
-      planned={[
-        "Карточки последних проектов с датой изменения",
-        "Статусы подготовки аватаров и голосов",
-        "Остаток и резерв кредитов",
-        "Активные задачи генерации с позицией в очереди",
-      ]}
-    />
+    <>
+      <PageHeader
+        title="Обзор"
+        description="Проекты, аватары, остаток кредитов и очередь генерации."
+      />
+      {/* Данные первого этапа лежат в IndexedDB, поэтому читаются на клиенте.
+          Когда появится HTTP-бэкенд, списки переедут в серверные компоненты. */}
+      <DashboardClient />
+    </>
   );
 }

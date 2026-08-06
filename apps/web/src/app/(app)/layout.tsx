@@ -7,6 +7,7 @@ import { SidebarNav } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { DataProvider } from "@/lib/data/data-provider";
 import {
   getCreditAccount,
   getCurrentUser,
@@ -61,7 +62,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        {/* Провайдер обёрнут вокруг содержимого, а не всей оболочки: пока
+            открывается локальное хранилище, навигация должна оставаться на
+            экране. */}
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <DataProvider>{children}</DataProvider>
+        </main>
       </div>
     </div>
   );

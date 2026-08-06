@@ -4,6 +4,7 @@ export * from './consent';
 export * from './asset';
 export * from './voice';
 export * from './avatar';
+export * from './hashing';
 export * from './timeline';
 export * from './project';
 export * from './credits';
