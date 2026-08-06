@@ -17,6 +17,7 @@ import {
 } from "@avatar/contracts";
 import { getDb, newId, nowIso } from "./db";
 import type { GenerationService } from "./ports";
+import { createSyntheticSpeechWav, syntheticPeaks } from "./synthetic-audio";
 import { abortQuietly } from "./tx";
 
 /**
@@ -227,23 +228,35 @@ async function createAsset(input: {
 }): Promise<Asset> {
   const db = await getDb();
   const timestamp = nowIso();
+  const id = newId("ast");
+
+  // Для аудио создаётся настоящий файл: без него нечего рисовать на дорожке,
+  // нечего обрезать и нечем проверять синхронизацию в превью. Видео остаётся
+  // без содержимого — правдоподобно подделать его нельзя, и превью честно
+  // показывает на его месте заглушку.
+  const blob = input.kind === "audio" ? createSyntheticSpeechWav(input.durationSec) : null;
+
   const asset = Asset.parse({
-    id: newId("ast"),
+    id,
     userId: "usr_demo",
     projectId: input.projectId,
     kind: input.kind,
     origin: "generated",
     name: input.name,
-    // Настоящие файлы появятся вместе с бэкендом; ссылка-заглушка держит
-    // форму данных корректной, чтобы UI не пришлось переделывать.
-    url: `mock://generated/${newId("file")}`,
+    url: blob ? `local://assets/${id}` : `mock://generated/${id}`,
     mimeType: input.kind === "audio" ? "audio/wav" : "video/mp4",
-    sizeBytes: Math.round(input.durationSec * (input.kind === "audio" ? 32_000 : 900_000)),
+    sizeBytes: blob?.size ?? Math.round(input.durationSec * 900_000),
     durationSec: input.durationSec,
+    waveformPeaks: blob ? syntheticPeaks(input.durationSec) : null,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
-  await db.put("assets", asset);
+
+  const tx = db.transaction(["assets", "blobs"], "readwrite");
+  const writes: Promise<unknown>[] = [tx.objectStore("assets").put(asset), tx.done];
+  if (blob) writes.push(tx.objectStore("blobs").put(blob, id));
+  await Promise.all(writes);
+
   return asset;
 }
 

@@ -122,6 +122,31 @@ async function main() {
   const finalAccount = await dataClient.credits.getAccount("usr_demo");
   check("неудачный запуск ничего не зарезервировал", finalAccount.reservedSeconds === 0);
 
+  // --- Файл озвучки ---
+  const voiceAsset = await dataClient.assets.get(scene1.voiceoverAssetId!);
+  check("ассет озвучки создан", voiceAsset !== null);
+  check("у озвучки есть огибающая", (voiceAsset?.waveformPeaks?.length ?? 0) > 0);
+  check(
+    "длительность ассета совпадает с длительностью сцены",
+    voiceAsset?.durationSec === scene1.durationSec,
+  );
+
+  const { getAssetBlob } = await import("../src/lib/data/uploads");
+  const voiceBlob = await getAssetBlob(voiceAsset!.id);
+  check("файл озвучки сохранён", voiceBlob !== null, `${voiceBlob?.size ?? 0} байт`);
+
+  const header = new Uint8Array(await voiceBlob!.arrayBuffer());
+  const riff = String.fromCharCode(...header.slice(0, 4));
+  const wave = String.fromCharCode(...header.slice(8, 12));
+  check("файл является корректным WAV", riff === "RIFF" && wave === "WAVE", `${riff}/${wave}`);
+
+  const declared = new DataView(header.buffer).getUint32(40, true);
+  check(
+    "заголовок описывает реальный размер данных",
+    declared === header.length - 44,
+    `${declared} против ${header.length - 44}`,
+  );
+
   // --- Жизненный цикл проекта ---
   const created = await dataClient.projects.create({
     title: "Проверочный проект",

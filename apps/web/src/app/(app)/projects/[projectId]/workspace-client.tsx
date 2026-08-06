@@ -17,6 +17,7 @@ import { useEditorStore } from "@/lib/editor/store";
 import { syncSceneClips } from "@/lib/editor/operations";
 import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-session";
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
+import { PreviewPlayer } from "@/components/preview/preview-player";
 import { Timeline } from "@/components/timeline/timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -174,7 +175,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr_minmax(0,380px)]">
         <Card className="h-fit">
           <CardContent className="space-y-1 pt-5">
             <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
@@ -218,6 +219,12 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
                 Выберите сцену слева или добавьте новую.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardContent className="pt-5">
+            <PreviewPlayer document={document} />
           </CardContent>
         </Card>
       </div>
