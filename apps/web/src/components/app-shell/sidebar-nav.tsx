@@ -9,12 +9,21 @@ import { cn } from "@/lib/utils";
 export function SidebarNav({
   role,
   onNavigate,
+  /**
+   * Сворачиваемый вариант для боковой панели: подписи скрыты, пока на панель не
+   * навели указатель. В мобильной панели он не нужен — там места достаточно.
+   */
+  collapsible = false,
 }: {
   role: UserRole;
-  /** Мобильная панель закрывается после перехода. */
   onNavigate?: () => void;
+  collapsible?: boolean;
 }) {
   const pathname = usePathname();
+
+  // Раскрытие идёт и по фокусу: при обходе с клавиатуры подписи обязаны
+  // появляться, иначе по панели невозможно ориентироваться без мыши.
+  const revealed = "group-hover/sidebar:opacity-100 group-focus-within/sidebar:opacity-100";
 
   return (
     <nav className="flex flex-col gap-6">
@@ -26,9 +35,15 @@ export function SidebarNav({
 
         return (
           <div key={group.label} className="flex flex-col gap-1">
-            <p className="text-sidebar-foreground/50 px-3 pb-1 text-xs font-medium tracking-wide uppercase">
+            <p
+              className={cn(
+                "text-sidebar-foreground/50 px-3 pb-1 text-xs font-medium tracking-wide whitespace-nowrap uppercase",
+                collapsible && `opacity-0 transition-opacity duration-200 ${revealed}`,
+              )}
+            >
               {group.label}
             </p>
+
             {items.map((item) => {
               const active = isNavItemActive(pathname, item.href);
               return (
@@ -48,7 +63,14 @@ export function SidebarNav({
                     <span className="bg-gradient-accent absolute top-1.5 bottom-1.5 -left-2 w-1 rounded-full" />
                   ) : null}
                   <item.icon className="size-4 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span
+                    className={cn(
+                      "truncate whitespace-nowrap",
+                      collapsible && `opacity-0 transition-opacity duration-200 ${revealed}`,
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}

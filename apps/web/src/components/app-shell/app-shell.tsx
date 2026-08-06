@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { CreditAccount } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useSession } from "@/lib/auth/session-context";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { Brand } from "./brand";
 import { NotificationBell } from "./notification-bell";
 import { CreditMeter } from "./credit-meter";
@@ -52,15 +48,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-1">
-      {/* Навигация тёмно-синяя и на светлой теме — п.14 ТЗ. Прилипает к верху и
-          прокручивается сама: при длинном списке проектов она иначе уезжала бы
-          вместе со страницей. */}
-      <aside className="bg-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-6 p-4 lg:flex">
-        <Brand className="px-1 pt-1" />
-        <div className="flex-1 overflow-y-auto">
-          <SidebarNav role={user.role} />
+      {/* Панель свёрнута до иконок и раскрывается при наведении. В потоке
+          страницы остаётся только узкая колонка, а раскрытая панель ложится
+          поверх содержимого: иначе страница дёргалась бы при каждом наведении.
+          Раскрытие идёт и по фокусу — с клавиатуры панель тоже должна
+          открываться. */}
+      <aside className="group/sidebar sticky top-0 hidden h-dvh w-16 shrink-0 lg:block">
+        <div className="bg-sidebar absolute inset-y-0 left-0 z-40 flex w-16 flex-col gap-6 overflow-x-hidden p-2 transition-all duration-200 ease-out group-hover/sidebar:w-64 group-hover/sidebar:p-4 group-hover/sidebar:shadow-soft-lg group-focus-within/sidebar:w-64 group-focus-within/sidebar:p-4 group-focus-within/sidebar:shadow-soft-lg">
+          <Brand className="px-1 pt-1" collapsible />
+          <div className="flex-1 overflow-x-hidden overflow-y-auto">
+            <SidebarNav role={user.role} collapsible />
+          </div>
+          <CreditMeter account={account.data ?? emptyAccount(user.id)} collapsible />
         </div>
-        <CreditMeter account={account.data ?? emptyAccount(user.id)} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -71,15 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <Button
-              nativeButton={false} role="link" render={<Link href="/projects/new" />}
-              className="bg-gradient-accent hidden text-white shadow-soft hover:opacity-90 sm:inline-flex"
-            >
-              <Plus className="size-4" />
-              Новый проект
-            </Button>
             <NotificationBell userId={user.id} />
-            <ThemeToggle />
             <UserMenu user={user} />
           </div>
         </header>

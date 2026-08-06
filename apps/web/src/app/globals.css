@@ -2,6 +2,15 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * У платформы одна тема — тёмно-зелёная. Вариант оформления не переключается,
+ * поэтому светлой палитры здесь нет вовсе.
+ *
+ * Класс dark на <html> остаётся закреплённым: компоненты shadcn содержат
+ * готовые правила с префиксом dark:, рассчитанные на тёмный фон. Без этого
+ * класса они не применялись бы, и поля с всплывающими панелями пришлось бы
+ * переписывать вручную.
+ */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -42,14 +51,14 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Акцентный градиент из п.14 ТЗ. Вынесен в токены, чтобы фиолетово-голубой
-     переход не расползался по компонентам разными парами цветов. */
+  /* Акцентный градиент. Вынесен в токены, чтобы переход не расползался по
+     компонентам разными парами цветов. */
   --color-grad-from: var(--grad-from);
   --color-grad-via: var(--grad-via);
   --color-grad-to: var(--grad-to);
 
   /* Цвета дорожек таймлайна. Дорожек восемь, и различать их надо мгновенно,
-     поэтому они закреплены токенами, а не подбираются в компоненте. */
+     поэтому оттенки закреплены токенами, а не подбираются в компоненте. */
   --color-track-video: var(--track-video);
   --color-track-avatar: var(--track-avatar);
   --color-track-image: var(--track-image);
@@ -62,21 +71,20 @@
   /* Шкала кегля поднята на ступень относительно стандартной: ТЗ требует
      крупную и хорошо читаемую типографику, а базовые 14 и 12 пикселей для
      основного текста и подписей мелковаты для интерфейса, в котором подолгу
-     читают. Меняем шкалу целиком, а не отдельные места, — иначе размеры
-     разъедутся между экранами. */
-  --text-xs: 0.8125rem; /* 13px */
+     читают. */
+  --text-xs: 0.8125rem;
   --text-xs--line-height: 1.25rem;
-  --text-sm: 0.9375rem; /* 15px */
+  --text-sm: 0.9375rem;
   --text-sm--line-height: 1.45rem;
-  --text-base: 1.0625rem; /* 17px */
+  --text-base: 1.0625rem;
   --text-base--line-height: 1.65rem;
-  --text-lg: 1.1875rem; /* 19px */
+  --text-lg: 1.1875rem;
   --text-lg--line-height: 1.75rem;
-  --text-xl: 1.375rem; /* 22px */
+  --text-xl: 1.375rem;
   --text-xl--line-height: 1.9rem;
-  --text-2xl: 1.625rem; /* 26px */
+  --text-2xl: 1.625rem;
   --text-2xl--line-height: 2.1rem;
-  --text-3xl: 2rem; /* 32px */
+  --text-3xl: 2rem;
   --text-3xl--line-height: 2.4rem;
 
   --radius-sm: calc(var(--radius) * 0.6);
@@ -87,125 +95,74 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* Мягкие тени вместо резких границ — п.14 ТЗ. */
-  --shadow-soft: 0 1px 2px oklch(0.28 0.05 265 / 0.06), 0 8px 24px oklch(0.28 0.05 265 / 0.08);
-  --shadow-soft-lg: 0 2px 4px oklch(0.28 0.05 265 / 0.06), 0 16px 48px oklch(0.28 0.05 265 / 0.12);
+  /* Тени на тёмном фоне строятся чернотой, а не затемнением цвета: цветная
+     тень на тёмно-зелёном превращается в грязное пятно. */
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.35), 0 8px 24px oklch(0 0 0 / 0.3);
+  --shadow-soft-lg: 0 2px 4px oklch(0 0 0 / 0.4), 0 16px 48px oklch(0 0 0 / 0.45);
 }
 
 :root {
-  /* Светлая тема: холодный, почти белый фон; тёмно-синий — только у навигации
-     и первичных действий; фиолетово-голубой градиент — у акцентов. */
-  --background: oklch(0.985 0.004 250);
-  --foreground: oklch(0.215 0.03 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.215 0.03 265);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.215 0.03 265);
+  /* Основа — глубокий зелёный, почти чёрный. Поверхности отличаются от фона
+     светлотой, а не рамками: на тёмном фоне рамки читаются как грязь. */
+  --background: oklch(0.16 0.018 165);
+  --foreground: oklch(0.95 0.012 150);
+  --card: oklch(0.205 0.022 165);
+  --card-foreground: oklch(0.95 0.012 150);
+  --popover: oklch(0.225 0.024 165);
+  --popover-foreground: oklch(0.95 0.012 150);
 
-  --primary: oklch(0.34 0.098 264);
-  --primary-foreground: oklch(0.98 0.005 260);
-  --secondary: oklch(0.955 0.01 255);
-  --secondary-foreground: oklch(0.3 0.06 264);
-  --muted: oklch(0.962 0.008 252);
-  --muted-foreground: oklch(0.53 0.025 262);
-  --accent: oklch(0.945 0.03 285);
-  --accent-foreground: oklch(0.37 0.13 285);
+  --primary: oklch(0.72 0.15 158);
+  --primary-foreground: oklch(0.16 0.03 165);
+  --secondary: oklch(0.27 0.03 165);
+  --secondary-foreground: oklch(0.95 0.012 150);
+  --muted: oklch(0.25 0.025 165);
+  --muted-foreground: oklch(0.73 0.022 155);
+  --accent: oklch(0.31 0.05 160);
+  --accent-foreground: oklch(0.93 0.06 155);
 
-  --destructive: oklch(0.585 0.22 27);
-  --success: oklch(0.62 0.15 155);
-  --warning: oklch(0.75 0.15 78);
-
-  --border: oklch(0.9 0.012 255);
-  --input: oklch(0.9 0.012 255);
-  --ring: oklch(0.62 0.17 278);
-
-  --grad-from: oklch(0.56 0.21 295);
-  --grad-via: oklch(0.6 0.19 275);
-  --grad-to: oklch(0.72 0.14 232);
-
-  --chart-1: oklch(0.56 0.21 295);
-  --chart-2: oklch(0.66 0.16 245);
-  --chart-3: oklch(0.72 0.14 200);
-  --chart-4: oklch(0.7 0.15 155);
-  --chart-5: oklch(0.75 0.15 78);
-
-  --track-video: oklch(0.62 0.17 265);
-  --track-avatar: oklch(0.58 0.2 295);
-  --track-image: oklch(0.68 0.14 215);
-  --track-text: oklch(0.66 0.13 185);
-  --track-voiceover: oklch(0.66 0.16 150);
-  --track-music: oklch(0.72 0.15 95);
-  --track-sfx: oklch(0.72 0.15 55);
-  --track-subtitle: oklch(0.6 0.12 330);
-
-  --radius: 0.875rem;
-
-  /* Навигация тёмно-синяя в обеих темах — это опорный элемент фирменного стиля,
-     а не производная от фона. */
-  --sidebar: oklch(0.255 0.055 265);
-  --sidebar-foreground: oklch(0.93 0.012 258);
-  --sidebar-primary: oklch(0.6 0.19 285);
-  --sidebar-primary-foreground: oklch(0.99 0.003 260);
-  --sidebar-accent: oklch(0.32 0.065 266);
-  --sidebar-accent-foreground: oklch(0.97 0.008 258);
-  --sidebar-border: oklch(0.36 0.05 265);
-  --sidebar-ring: oklch(0.62 0.17 278);
-}
-
-.dark {
-  --background: oklch(0.185 0.022 265);
-  --foreground: oklch(0.955 0.006 250);
-  --card: oklch(0.225 0.026 265);
-  --card-foreground: oklch(0.955 0.006 250);
-  --popover: oklch(0.235 0.028 265);
-  --popover-foreground: oklch(0.955 0.006 250);
-
-  /* В тёмной теме тёмно-синий перестаёт быть контрастным, поэтому первичный
-     цвет светлеет — иначе кнопки сливаются с фоном. */
-  --primary: oklch(0.7 0.15 278);
-  --primary-foreground: oklch(0.17 0.03 265);
-  --secondary: oklch(0.29 0.035 265);
-  --secondary-foreground: oklch(0.95 0.008 255);
-  --muted: oklch(0.28 0.03 265);
-  --muted-foreground: oklch(0.7 0.02 258);
-  --accent: oklch(0.32 0.06 285);
-  --accent-foreground: oklch(0.93 0.03 285);
-
-  --destructive: oklch(0.68 0.19 25);
-  --success: oklch(0.72 0.16 155);
-  --warning: oklch(0.8 0.15 80);
+  --destructive: oklch(0.66 0.19 25);
+  --success: oklch(0.76 0.16 150);
+  --warning: oklch(0.81 0.14 85);
 
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.65 0.17 278);
+  --ring: oklch(0.68 0.15 158);
 
-  --grad-from: oklch(0.64 0.21 295);
-  --grad-via: oklch(0.66 0.19 275);
-  --grad-to: oklch(0.76 0.14 232);
+  /* Акцент — переход внутри зелёного: от травяного к бирюзовому. */
+  --grad-from: oklch(0.62 0.16 148);
+  --grad-via: oklch(0.68 0.14 165);
+  --grad-to: oklch(0.73 0.11 188);
 
-  --chart-1: oklch(0.64 0.21 295);
-  --chart-2: oklch(0.7 0.16 245);
-  --chart-3: oklch(0.76 0.14 200);
-  --chart-4: oklch(0.74 0.15 155);
-  --chart-5: oklch(0.79 0.15 78);
+  --chart-1: oklch(0.7 0.15 150);
+  --chart-2: oklch(0.72 0.13 175);
+  --chart-3: oklch(0.74 0.12 195);
+  --chart-4: oklch(0.78 0.14 120);
+  --chart-5: oklch(0.81 0.14 85);
 
-  --track-video: oklch(0.66 0.17 265);
-  --track-avatar: oklch(0.64 0.2 295);
-  --track-image: oklch(0.72 0.14 215);
-  --track-text: oklch(0.7 0.13 185);
-  --track-voiceover: oklch(0.7 0.16 150);
-  --track-music: oklch(0.76 0.15 95);
+  /* Дорожки таймлайна остаются разноцветными: их задача — различаться с
+     первого взгляда, и подгонка под одну гамму эту задачу ломает. Оттенки
+     подобраны так, чтобы держать контраст на тёмно-зелёном фоне. */
+  --track-video: oklch(0.66 0.14 210);
+  --track-avatar: oklch(0.7 0.15 150);
+  --track-image: oklch(0.72 0.12 190);
+  --track-text: oklch(0.75 0.12 120);
+  --track-voiceover: oklch(0.72 0.15 165);
+  --track-music: oklch(0.79 0.14 95);
   --track-sfx: oklch(0.76 0.15 55);
-  --track-subtitle: oklch(0.66 0.12 330);
+  --track-subtitle: oklch(0.68 0.11 320);
 
-  --sidebar: oklch(0.155 0.02 265);
-  --sidebar-foreground: oklch(0.93 0.012 258);
-  --sidebar-primary: oklch(0.66 0.19 285);
-  --sidebar-primary-foreground: oklch(0.99 0.003 260);
-  --sidebar-accent: oklch(0.25 0.035 266);
-  --sidebar-accent-foreground: oklch(0.97 0.008 258);
+  --radius: 0.875rem;
+
+  /* Навигация темнее основного фона: так панель отделяется от содержимого без
+     разделительной линии. */
+  --sidebar: oklch(0.125 0.016 165);
+  --sidebar-foreground: oklch(0.93 0.014 150);
+  --sidebar-primary: oklch(0.68 0.15 158);
+  --sidebar-primary-foreground: oklch(0.14 0.02 165);
+  --sidebar-accent: oklch(0.235 0.032 165);
+  --sidebar-accent-foreground: oklch(0.96 0.02 150);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.65 0.17 278);
+  --sidebar-ring: oklch(0.68 0.15 158);
 }
 
 @layer base {
@@ -217,9 +174,10 @@
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
   }
 
-  /* Плавные анимации (п.14 ТЗ), но не для тех, кому они мешают. */
+  /* Плавные анимации, но не для тех, кому они мешают. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

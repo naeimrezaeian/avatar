@@ -26,20 +26,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f8fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#14161f" },
-  ],
+  themeColor: "#0b1712",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="ru"
-      // suppressHydrationWarning нужен next-themes: класс темы ставится
-      // инлайновым скриптом до гидратации, чтобы не было вспышки светлой темы.
-      suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      // Класс dark закреплён: тема одна, и правила компонентов с префиксом
+      // dark: рассчитаны именно на тёмный фон.
+      className={`dark ${inter.variable} ${jetbrainsMono.variable} antialiased`}
     >
       {/* Высота задана единицами вьюпорта, а не процентами: процент считается от
           высоты родителя, а она здесь auto — цепочка не разрешается, и блоки

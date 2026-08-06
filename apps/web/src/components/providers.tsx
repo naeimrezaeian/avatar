@@ -1,20 +1,12 @@
 "use client";
 
-import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { ReactNode } from "react";
 
+/**
+ * У платформы одна тема, поэтому провайдера оформления нет: выбор темы был бы
+ * настройкой без вариантов.
+ */
 export function Providers({ children }: { children: ReactNode }) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      // Отключаем анимации на момент переключения: иначе каждый элемент с
-      // transition проигрывает свой переход и смена темы выглядит рваной.
-      disableTransitionOnChange
-    >
-      <TooltipProvider delay={300}>{children}</TooltipProvider>
-    </NextThemesProvider>
-  );
+  return <TooltipProvider delay={300}>{children}</TooltipProvider>;
 }
