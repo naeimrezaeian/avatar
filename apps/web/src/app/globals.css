@@ -32,6 +32,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-available: var(--chart-available);
+  --color-chart-reserved: var(--chart-reserved);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -102,36 +104,45 @@
 }
 
 :root {
-  /* Основа — глубокий зелёный, почти чёрный. Поверхности отличаются от фона
-     светлотой, а не рамками: на тёмном фоне рамки читаются как грязь. */
-  --background: oklch(0.16 0.018 165);
+  /* Основа — тёмный зелёный, но не угольный: при слишком низкой светлоте
+     интерфейс читается как мрачный, а разница между поверхностями пропадает.
+     Поверхности отличаются от фона светлотой, а не рамками: на тёмном фоне
+     рамки читаются как грязь. */
+  --background: oklch(0.215 0.022 165);
   --foreground: oklch(0.95 0.012 150);
-  --card: oklch(0.205 0.022 165);
+  --card: oklch(0.26 0.026 165);
   --card-foreground: oklch(0.95 0.012 150);
-  --popover: oklch(0.225 0.024 165);
+  --popover: oklch(0.285 0.028 165);
   --popover-foreground: oklch(0.95 0.012 150);
 
-  --primary: oklch(0.72 0.15 158);
-  --primary-foreground: oklch(0.16 0.03 165);
-  --secondary: oklch(0.27 0.03 165);
+  --primary: oklch(0.76 0.16 158);
+  --primary-foreground: oklch(0.18 0.03 165);
+  --secondary: oklch(0.32 0.032 165);
   --secondary-foreground: oklch(0.95 0.012 150);
-  --muted: oklch(0.25 0.025 165);
-  --muted-foreground: oklch(0.73 0.022 155);
-  --accent: oklch(0.31 0.05 160);
+  --muted: oklch(0.305 0.028 165);
+  --muted-foreground: oklch(0.78 0.026 155);
+  --accent: oklch(0.365 0.058 160);
   --accent-foreground: oklch(0.93 0.06 155);
 
   --destructive: oklch(0.66 0.19 25);
   --success: oklch(0.76 0.16 150);
   --warning: oklch(0.81 0.14 85);
 
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.68 0.15 158);
 
   /* Акцент — переход внутри зелёного: от травяного к бирюзовому. */
-  --grad-from: oklch(0.62 0.16 148);
-  --grad-via: oklch(0.68 0.14 165);
-  --grad-to: oklch(0.73 0.11 188);
+  --grad-from: oklch(0.68 0.17 148);
+  --grad-via: oklch(0.73 0.15 168);
+  --grad-to: oklch(0.78 0.12 192);
+
+  /* Цвета показателей проверены скриптом валидации палитры из правил
+     визуализации: полоса светлоты для тёмной темы, порог насыщенности,
+     различимость при дальтонизме и контраст к поверхности. Менять их на глаз
+     нельзя — только повторной проверкой. */
+  --chart-available: #059669;
+  --chart-reserved: #0284c7;
 
   --chart-1: oklch(0.7 0.15 150);
   --chart-2: oklch(0.72 0.13 175);
@@ -155,11 +166,11 @@
 
   /* Навигация темнее основного фона: так панель отделяется от содержимого без
      разделительной линии. */
-  --sidebar: oklch(0.125 0.016 165);
+  --sidebar: oklch(0.165 0.02 165);
   --sidebar-foreground: oklch(0.93 0.014 150);
   --sidebar-primary: oklch(0.68 0.15 158);
   --sidebar-primary-foreground: oklch(0.14 0.02 165);
-  --sidebar-accent: oklch(0.235 0.032 165);
+  --sidebar-accent: oklch(0.285 0.038 165);
   --sidebar-accent-foreground: oklch(0.96 0.02 150);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.68 0.15 158);

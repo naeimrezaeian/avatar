@@ -48,19 +48,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-1">
-      {/* Панель свёрнута до иконок и раскрывается при наведении. В потоке
-          страницы остаётся только узкая колонка, а раскрытая панель ложится
-          поверх содержимого: иначе страница дёргалась бы при каждом наведении.
-          Раскрытие идёт и по фокусу — с клавиатуры панель тоже должна
-          открываться. */}
-      <aside className="group/sidebar sticky top-0 hidden h-dvh w-16 shrink-0 lg:block">
-        <div className="bg-sidebar absolute inset-y-0 left-0 z-40 flex w-16 flex-col gap-6 overflow-x-hidden p-2 transition-all duration-200 ease-out group-hover/sidebar:w-64 group-hover/sidebar:p-4 group-hover/sidebar:shadow-soft-lg group-focus-within/sidebar:w-64 group-focus-within/sidebar:p-4 group-focus-within/sidebar:shadow-soft-lg">
-          <Brand className="px-1 pt-1" collapsible />
-          <div className="flex-1 overflow-x-hidden overflow-y-auto">
-            <SidebarNav role={user.role} collapsible />
-          </div>
-          <CreditMeter account={account.data ?? emptyAccount(user.id)} collapsible />
+      {/* Панель свёрнута до иконок и раскрывается при наведении, раздвигая
+          содержимое: страница остаётся видимой целиком, ничего не уходит под
+          панель. Ширина меняется плавно, поэтому перекомпоновка справа не
+          выглядит рывком. Раскрытие идёт и по фокусу — с клавиатуры панель тоже
+          должна открываться. */}
+      <aside className="group/sidebar bg-sidebar sticky top-0 hidden h-dvh w-16 shrink-0 flex-col gap-6 overflow-x-hidden p-2 transition-all duration-300 ease-out hover:w-64 hover:p-4 focus-within:w-64 focus-within:p-4 lg:flex">
+        <Brand className="px-1 pt-1" collapsible />
+        <div className="flex-1 overflow-x-hidden overflow-y-auto">
+          <SidebarNav role={user.role} collapsible />
         </div>
+        <CreditMeter account={account.data ?? emptyAccount(user.id)} collapsible />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

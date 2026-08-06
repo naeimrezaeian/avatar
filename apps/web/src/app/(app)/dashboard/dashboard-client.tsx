@@ -8,8 +8,18 @@ import {
   secondsToMinutesLabel,
   type GenerationJob,
 } from "@avatar/contracts";
-import { AudioLines, Clapperboard, Loader2, XCircle } from "lucide-react";
+import {
+  AudioLines,
+  Clapperboard,
+  FolderKanban,
+  Loader2,
+  UserRound,
+  Wallet,
+  XCircle,
+} from "lucide-react";
 import { InsufficientCreditsError, dataClient, queryKeys } from "@/lib/data";
+import { CreditsBar } from "@/components/charts/credits-bar";
+import { StatTile } from "@/components/stat-tile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +63,10 @@ export function DashboardClient() {
     queryKey: queryKeys.jobs(),
     queryFn: () => dataClient.jobs.list(),
   });
+  const transactions = useQuery({
+    queryKey: queryKeys.creditTransactions,
+    queryFn: () => dataClient.credits.listTransactions("usr_demo"),
+  });
   const document = useQuery({
     queryKey: queryKeys.document(DEMO_PROJECT_ID),
     queryFn: () => dataClient.documents.get(DEMO_PROJECT_ID),
@@ -92,18 +106,46 @@ export function DashboardClient() {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="grid gap-4 sm:grid-cols-3 lg:col-span-3">
-        <StatCard label="Проекты" value={String(projects.data?.length ?? "—")} />
-        <StatCard label="Аватары" value={String(avatars.data?.length ?? "—")} />
-        <StatCard
+        <StatTile
+          label="Проекты"
+          value={String(projects.data?.length ?? "—")}
+          icon={FolderKanban}
+        />
+        <StatTile
+          label="Аватары"
+          value={String(avatars.data?.length ?? "—")}
+          icon={UserRound}
+        />
+        <StatTile
           label="Доступно минут"
           value={account.data ? secondsToMinutesLabel(availableSeconds(account.data)) : "—"}
+          icon={Wallet}
+          tone={
+            account.data && availableSeconds(account.data) < 300 ? "warning" : "accent"
+          }
           hint={
             account.data && account.data.reservedSeconds > 0
-              ? `${secondsToMinutesLabel(account.data.reservedSeconds)} мин в резерве`
+              ? `${secondsToMinutesLabel(account.data.reservedSeconds)} мин удерживается`
               : undefined
           }
         />
       </div>
+
+      {account.data ? (
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Кредиты</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CreditsBar
+              account={account.data}
+              spentSeconds={(transactions.data ?? [])
+                .filter((item) => item.kind === "spend")
+                .reduce((sum, item) => sum + Math.abs(item.deltaSeconds), 0)}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="lg:col-span-2">
         <CardHeader>
@@ -201,18 +243,6 @@ export function DashboardClient() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-5">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-        {hint ? <p className="text-muted-foreground mt-0.5 text-xs">{hint}</p> : null}
-      </CardContent>
-    </Card>
   );
 }
 
