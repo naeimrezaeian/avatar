@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 import { PodcastForm } from "../podcast-form";
 
 export const metadata: Metadata = { title: "Новый подкаст" };
@@ -9,19 +8,20 @@ export const metadata: Metadata = { title: "Новый подкаст" };
 export default function NewPodcastPage() {
   return (
     <>
-      <div className="mb-4 flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          nativeButton={false}
-          role="link"
-          render={<Link href="/podcast" />}
-          aria-label="К списку подкастов"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Новый подкаст</h1>
-      </div>
+      {/* Название выпуска живёт на обложке и меняется по мере ввода, поэтому
+          сверху — только путь: повторять заголовок дважды на одном экране
+          незачем. */}
+      <nav
+        aria-label="Хлебные крошки"
+        className="text-muted-foreground mx-auto mb-3 flex max-w-5xl items-center gap-1 text-sm"
+      >
+        <Link href="/podcast" className="hover:text-foreground transition-colors">
+          Подкасты
+        </Link>
+        <ChevronRight className="size-3.5" />
+        <span className="text-foreground">Новый выпуск</span>
+      </nav>
+
       <PodcastForm />
     </>
   );

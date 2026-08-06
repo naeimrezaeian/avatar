@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, UserRound } from "lucide-react";
+import { AlertTriangle, Mic, Pause, Play, UserRound } from "lucide-react";
 import { primaryImage, type Avatar, type Voice } from "@avatar/contracts";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
 import {
@@ -16,12 +16,12 @@ import { cn } from "@/lib/utils";
 /**
  * Карточка говорящего: лицо, имя и голос с прослушиванием.
  *
- * Образец голоса можно послушать прямо здесь: выбирать голос по названию — это
- * гадание, а ошибка выяснится только после генерации, за которую уже списаны
- * кредиты.
+ * Образец голоса слушают прямо здесь: выбирать голос по названию — это гадание,
+ * а ошибка выясняется только после генерации, за которую уже списаны кредиты.
  */
 export function SpeakerCard({
   label,
+  accent,
   avatars,
   voices,
   avatarId,
@@ -30,6 +30,7 @@ export function SpeakerCard({
   onVoiceChange,
 }: {
   label: string;
+  accent: "host" | "guest";
   avatars: Avatar[];
   voices: Voice[];
   avatarId: string;
@@ -43,27 +44,44 @@ export function SpeakerCard({
   const imageUrl = useAssetUrl(avatar ? primaryImage(avatar)?.assetId : null);
   const sampleUrl = useAssetUrl(voice?.sampleAssetId ?? null);
 
+  const notReady = avatar !== null && avatar.status !== "ready";
+
   return (
-    <div className="border-border bg-card rounded-2xl border p-3 shadow-soft">
-      <p className="text-muted-foreground mb-2 text-sm font-medium">{label}</p>
+    <div
+      className={cn(
+        "border-border bg-card relative flex h-full flex-col gap-3 rounded-2xl border p-4 transition-shadow",
+        "shadow-soft hover:shadow-soft-lg",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "size-2 rounded-full",
+            accent === "host" ? "bg-track-avatar" : "bg-track-image",
+          )}
+        />
+        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          {label}
+        </span>
+      </div>
 
       <div className="flex items-center gap-3">
-        <span className="bg-muted ring-background flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2">
+        <span className="bg-muted ring-border relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1">
           {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- локальный object URL, оптимизатор next/image к нему не применим
             <img src={imageUrl} alt="" className="size-full object-cover" />
           ) : (
-            <UserRound className="text-muted-foreground size-6" />
+            <UserRound className="text-muted-foreground size-7" />
           )}
         </span>
 
-        <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="min-w-0 flex-1">
           <Select
             items={Object.fromEntries(avatars.map((item) => [item.id, item.name]))}
             value={avatarId}
             onValueChange={(value) => value && onAvatarChange(value)}
           >
-            <SelectTrigger className="h-9 border-0 bg-transparent px-0 text-base font-medium shadow-none">
+            <SelectTrigger className="h-9 w-full border-0 bg-transparent px-0 text-base font-semibold shadow-none">
               <SelectValue placeholder="Выберите аватар" />
             </SelectTrigger>
             <SelectContent>
@@ -76,14 +94,15 @@ export function SpeakerCard({
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-1.5">
+          <div className="mt-1 flex items-center gap-1.5">
             <VoicePreviewButton url={sampleUrl} />
             <Select
               items={Object.fromEntries(voices.map((item) => [item.id, item.name]))}
               value={voiceId}
               onValueChange={(value) => value && onVoiceChange(value)}
             >
-              <SelectTrigger className="bg-muted/60 h-7 rounded-full border-0 px-3 text-sm shadow-none">
+              <SelectTrigger className="bg-muted/70 hover:bg-muted h-8 min-w-0 rounded-full border-0 px-3 text-sm shadow-none transition-colors">
+                <Mic className="text-muted-foreground size-3.5" />
                 <SelectValue placeholder="Голос" />
               </SelectTrigger>
               <SelectContent>
@@ -98,11 +117,17 @@ export function SpeakerCard({
         </div>
       </div>
 
-      {avatar !== null && avatar.status !== "ready" ? (
-        <p className="text-warning mt-2 text-xs">
-          Аватар ещё готовится — запустить генерацию можно будет после того, как он будет готов.
-        </p>
-      ) : null}
+      {/* Место под предупреждение зарезервировано всегда: иначе карточки
+          собеседников разъезжаются по высоте, стоит одному из них оказаться
+          неготовым. */}
+      <div className="mt-auto min-h-6">
+        {notReady ? (
+          <span className="bg-warning/12 text-warning inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs">
+            <AlertTriangle className="size-3" />
+            Аватар ещё готовится
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -138,7 +163,10 @@ function VoicePreviewButton({ url }: { url: string | null }) {
       return;
     }
     audio.currentTime = 0;
-    void audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    void audio
+      .play()
+      .then(() => setPlaying(true))
+      .catch(() => setPlaying(false));
   };
 
   return (
@@ -147,14 +175,15 @@ function VoicePreviewButton({ url }: { url: string | null }) {
       onClick={toggle}
       disabled={url === null}
       aria-label={playing ? "Остановить образец" : "Послушать образец голоса"}
+      title={url === null ? "Образец недоступен" : "Послушать образец"}
       className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-full transition-colors",
+        "flex size-8 shrink-0 items-center justify-center rounded-full transition-all",
         url === null
           ? "bg-muted text-muted-foreground/50"
-          : "bg-foreground text-background hover:opacity-85",
+          : "bg-foreground text-background hover:scale-105",
       )}
     >
-      {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
+      {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
     </button>
   );
 }
