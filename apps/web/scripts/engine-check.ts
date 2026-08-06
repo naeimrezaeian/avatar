@@ -122,6 +122,38 @@ async function main() {
   const finalAccount = await dataClient.credits.getAccount("usr_demo");
   check("неудачный запуск ничего не зарезервировал", finalAccount.reservedSeconds === 0);
 
+  // --- Жизненный цикл проекта ---
+  const created = await dataClient.projects.create({
+    title: "Проверочный проект",
+    aspectRatio: "9:16",
+    avatarId: "avt_demo",
+    voiceId: "voi_demo",
+  });
+  const createdDoc = await dataClient.documents.get(created.id);
+  check("вместе с проектом создан документ", createdDoc !== null);
+  check("документ унаследовал кадр проекта", createdDoc?.aspectRatio === "9:16");
+  check("созданы дорожки по умолчанию", (createdDoc?.trackOrder.length ?? 0) === 4);
+
+  const copy = await dataClient.projects.duplicate(created.id);
+  const copyDoc = await dataClient.documents.get(copy.id);
+  check("копия получила новый идентификатор", copy.id !== created.id);
+  check("копия получила собственный документ", copyDoc?.projectId === copy.id);
+  check("ревизия копии сброшена", copyDoc?.revision === 0);
+
+  await dataClient.projects.archive(created.id);
+  const activeOnly = await dataClient.projects.list();
+  check("архивный проект исчез из активных", !activeOnly.some((p) => p.id === created.id));
+  const withArchived = await dataClient.projects.list({ includeArchived: true });
+  check("архивный проект виден с флагом", withArchived.some((p) => p.id === created.id));
+
+  await dataClient.projects.softDelete(created.id);
+  const afterDelete = await dataClient.projects.list({ includeArchived: true });
+  check("удалённый проект скрыт даже с флагом", !afterDelete.some((p) => p.id === created.id));
+
+  await dataClient.projects.restore(created.id);
+  const afterRestore = await dataClient.projects.list();
+  check("восстановленный проект вернулся в активные", afterRestore.some((p) => p.id === created.id));
+
   console.log(failures === 0 ? "\nВСЕ ПРОВЕРКИ ПРОШЛИ" : `\nПРОВАЛЕНО: ${failures}`);
   process.exit(failures === 0 ? 0 : 1);
 }
