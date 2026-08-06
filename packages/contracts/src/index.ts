@@ -1,5 +1,6 @@
 export * from './primitives';
 export * from './user';
+export * from './auth';
 export * from './consent';
 export * from './asset';
 export * from './voice';

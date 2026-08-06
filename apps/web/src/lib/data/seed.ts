@@ -7,10 +7,22 @@ import {
   Project,
   ProjectDocument,
   Scene,
+  User,
   Track,
   Voice,
 } from "@avatar/contracts";
 import { getDb, nowIso } from "./db";
+import { generateSalt, hashPassword } from "@/lib/auth/crypto";
+
+/**
+ * Демонстрационная учётная запись. Существует, чтобы платформу можно было
+ * открыть и попробовать без регистрации, и живёт только в локальном хранилище
+ * браузера. При появлении настоящего бэкенда её здесь быть не должно.
+ */
+export const DEMO_CREDENTIALS = {
+  email: "naeimwtg@gmail.com",
+  password: "avatar2026demo",
+} as const;
 
 /**
  * Демо-данные первого этапа. Посев идёт один раз: признаком служит наличие
@@ -174,8 +186,27 @@ export async function seedIfEmpty(): Promise<void> {
     createdAt: timestamp,
   });
 
+  const demoUser = User.parse({
+    id: USER_ID,
+    firstName: "Наим",
+    lastName: "Резаиан",
+    email: DEMO_CREDENTIALS.email,
+    emailVerifiedAt: timestamp,
+    role: "admin",
+    status: "active",
+    interfaceLanguage: "ru",
+    lastLoginAt: null,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  const salt = generateSalt();
+  const passwordHash = await hashPassword(DEMO_CREDENTIALS.password, salt);
+
   const tx = db.transaction(
     [
+      "users",
+      "credentials",
       "consents",
       "assets",
       "voices",
@@ -189,6 +220,8 @@ export async function seedIfEmpty(): Promise<void> {
   );
 
   await Promise.all([
+    tx.objectStore("users").put(demoUser),
+    tx.objectStore("credentials").put({ userId: USER_ID, salt, hash: passwordHash }),
     tx.objectStore("consents").put(likenessConsent),
     tx.objectStore("consents").put(voiceConsent),
     tx.objectStore("assets").put(portrait),

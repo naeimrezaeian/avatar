@@ -10,6 +10,9 @@ import type {
   Project,
   ProjectDocument,
   RenderVersion,
+  Session,
+  User,
+  VerificationToken,
   Voice,
 } from "@avatar/contracts";
 
@@ -57,10 +60,30 @@ export interface AvatarDB extends DBSchema {
     value: RenderVersion;
     indexes: { "by-project": string };
   };
+  users: {
+    key: string;
+    value: User;
+    indexes: { "by-email": string };
+  };
+  /**
+   * Секреты входа отделены от профиля: список пользователей в админке читается
+   * часто, и хэш пароля не должен уезжать вместе с ним.
+   */
+  credentials: { key: string; value: { userId: string; salt: string; hash: string } };
+  sessions: {
+    key: string;
+    value: Session;
+    indexes: { "by-user": string };
+  };
+  verificationTokens: {
+    key: string;
+    value: VerificationToken;
+    indexes: { "by-user": string };
+  };
 }
 
 const DB_NAME = "avatar-studio";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase<AvatarDB>> | null = null;
 
@@ -108,6 +131,19 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
       if (oldVersion < 3) {
         const versions = db.createObjectStore("renderVersions", { keyPath: "id" });
         versions.createIndex("by-project", "projectId");
+      }
+
+      if (oldVersion < 4) {
+        const users = db.createObjectStore("users", { keyPath: "id" });
+        users.createIndex("by-email", "email", { unique: true });
+
+        db.createObjectStore("credentials", { keyPath: "userId" });
+
+        const sessions = db.createObjectStore("sessions", { keyPath: "id" });
+        sessions.createIndex("by-user", "userId");
+
+        const tokens = db.createObjectStore("verificationTokens", { keyPath: "id" });
+        tokens.createIndex("by-user", "userId");
       }
     },
 

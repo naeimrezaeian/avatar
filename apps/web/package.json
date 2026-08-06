@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check:data": "tsx scripts/engine-check.ts",
     "check:editor": "tsx scripts/editor-check.ts",
-    "check": "npm run check:data && npm run check:editor"
+    "check": "npm run check:data && npm run check:editor && npm run check:auth",
+    "check:auth": "tsx scripts/auth-check.ts"
   },
   "dependencies": {
     "@avatar/contracts": "*",

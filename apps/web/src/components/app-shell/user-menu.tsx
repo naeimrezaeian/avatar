@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LogOut, Settings, ShieldCheck, UserRound } from "lucide-react";
-import type { User } from "@avatar/contracts";
-import { can } from "@avatar/contracts";
+import { can, type User } from "@avatar/contracts";
+import { useSession } from "@/lib/auth/session-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,15 +16,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function UserMenu({
-  user,
-  initials,
-  fullName,
-}: {
-  user: User;
-  initials: string;
-  fullName: string;
-}) {
+export function UserMenu({ user }: { user: User }) {
+  const { logout } = useSession();
+  const router = useRouter();
+
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const fullName = `${user.firstName} ${user.lastName}`;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -59,7 +58,13 @@ export function UserMenu({
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive">
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={async () => {
+            await logout();
+            router.replace("/login");
+          }}
+        >
           <LogOut className="size-4" />
           Выйти
         </DropdownMenuItem>
