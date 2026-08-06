@@ -5,6 +5,7 @@ import { Pause, Play, SkipBack } from "lucide-react";
 import {
   ASPECT_RATIO_VALUES,
   clipEndSec,
+  type AvatarStyle,
   type Clip,
   type ProjectDocument,
 } from "@avatar/contracts";
@@ -184,7 +185,14 @@ function drawFrame(
       continue;
     }
 
-    drawImage(context, width, height, image, "transform" in clip ? clip.transform : null);
+    drawImage(
+      context,
+      width,
+      height,
+      image,
+      "transform" in clip ? clip.transform : null,
+      clip.kind === "avatar" ? clip.style : null,
+    );
   }
 }
 
@@ -194,8 +202,18 @@ function drawImage(
   height: number,
   image: HTMLImageElement,
   transform: { anchor: string; offsetXRatio: number; offsetYRatio: number; scale: number; opacity: number } | null,
+  style: AvatarStyle | null,
 ): void {
-  const scale = transform?.scale ?? 1;
+  // Подложка рисуется до фигуры: сплошной цвет заменяет фон кадра, а «убрать
+  // фон» без модели сегментации честно показывается тем же способом — иначе
+  // предпросмотр обещал бы вырезание, которого здесь нет.
+  if (style && style.background.kind === "color") {
+    context.fillStyle = style.background.color;
+    context.fillRect(0, 0, width, height);
+  }
+
+  const zoom = style ? style.zoomPct / 100 : 1;
+  const scale = (transform?.scale ?? 1) * zoom;
   // Вписываем по высоте кадра — так лицо остаётся целиком видимым в любом
   // соотношении сторон.
   const drawHeight = height * scale;
@@ -212,7 +230,23 @@ function drawImage(
   const y = height / 2 + (transform?.offsetYRatio ?? 0) * height - drawHeight / 2;
 
   context.globalAlpha = transform?.opacity ?? 1;
+  context.save();
+
+  if (style && (style.shape === "circle" || style.cornerRadiusPx > 0)) {
+    // Радиус задан в пикселях кадра 1080p, поэтому пересчитывается под текущий
+    // холст — иначе скругление менялось бы вместе с масштабом предпросмотра.
+    const radius =
+      style.shape === "circle"
+        ? Math.min(drawWidth, drawHeight) / 2
+        : (style.cornerRadiusPx / 1080) * height;
+
+    context.beginPath();
+    context.roundRect(x, y, drawWidth, drawHeight, radius);
+    context.clip();
+  }
+
   context.drawImage(image, x, y, drawWidth, drawHeight);
+  context.restore();
   context.globalAlpha = 1;
 }
 

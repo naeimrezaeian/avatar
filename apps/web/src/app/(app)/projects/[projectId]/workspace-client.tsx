@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookmarkPlus, Captions, CheckCircle2, Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BookmarkPlus, Captions, CheckCircle2, Download, Loader2, Plus, Trash2, Wand2 } from "lucide-react";
 import {
   Scene,
   isJobActive,
@@ -176,6 +176,14 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           </p>
         </div>
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
+        <Button
+          variant="secondary"
+          nativeButton={false}
+          render={<Link href={`/projects/${projectId}/studio`} />}
+        >
+          <Wand2 className="size-4" />
+          Студия
+        </Button>
         <Button
           variant="secondary"
           onClick={() => {

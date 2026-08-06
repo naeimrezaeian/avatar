@@ -9,6 +9,7 @@ import {
   History,
   Images,
   LayoutDashboard,
+  Mic,
   Settings,
   ShieldCheck,
   UserRound,
@@ -38,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Обзор", icon: LayoutDashboard },
       { href: "/projects", label: "Проекты", icon: FolderKanban },
+      { href: "/podcast", label: "Видеоподкаст", icon: Mic },
       { href: "/avatars", label: "Аватары", icon: UserRound },
       { href: "/voices", label: "Голоса", icon: AudioLines },
     ],

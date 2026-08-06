@@ -233,7 +233,11 @@ export function CreateAvatarDialog({
                 </AlertDescription>
               </Alert>
             ) : (
-              <Select value={voiceId} onValueChange={(value) => setVoiceId(value ?? "")}>
+              <Select
+                items={Object.fromEntries(readyVoices.map((voice) => [voice.id, voice.name]))}
+                value={voiceId}
+                onValueChange={(value) => setVoiceId(value ?? "")}
+              >
                 <SelectTrigger id="avatar-voice">
                   <SelectValue placeholder="Выберите голос" />
                 </SelectTrigger>
@@ -250,7 +254,11 @@ export function CreateAvatarDialog({
 
           <div className="grid gap-2">
             <Label htmlFor="avatar-language">Язык речи</Label>
-            <Select value={language} onValueChange={(value) => setLanguage(value as LanguageCode)}>
+            <Select
+              items={{ ru: "Русский", en: "Английский" }}
+              value={language}
+              onValueChange={(value) => setLanguage(value as LanguageCode)}
+            >
               <SelectTrigger id="avatar-language">
                 <SelectValue />
               </SelectTrigger>

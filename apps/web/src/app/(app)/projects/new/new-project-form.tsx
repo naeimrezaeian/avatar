@@ -112,7 +112,13 @@ export function NewProjectForm() {
               </Alert>
             ) : (
               <>
-                <Select value={avatarId} onValueChange={(value) => setAvatarId(value ?? "")}>
+                <Select
+                  items={Object.fromEntries(
+                    usableAvatars.map((avatar) => [avatar.id, avatar.name]),
+                  )}
+                  value={avatarId}
+                  onValueChange={(value) => setAvatarId(value ?? "")}
+                >
                   <SelectTrigger id="project-avatar">
                     <SelectValue placeholder="Выберите аватар" />
                   </SelectTrigger>

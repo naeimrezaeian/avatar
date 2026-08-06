@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, Seconds } from './primitives';
+import { AVATAR_STYLE_DEFAULT, AvatarStyle } from './studio';
 
 /**
  * Дорожки таймлайна из п.9 ТЗ. Порядок в trackOrder задаёт порядок наложения
@@ -106,6 +107,8 @@ export const AvatarClip = ClipBase.extend({
   kind: z.literal('avatar'),
   sceneId: Id,
   transform: Transform.default(TRANSFORM_DEFAULT),
+  /** Фон, форма кадра, скругление и приближение — см. AvatarStyle. */
+  style: AvatarStyle.default(AVATAR_STYLE_DEFAULT),
   audio: AudioSettings.default(AUDIO_SETTINGS_DEFAULT),
   /** Аватар можно скрыть в отдельных сценах, оставив звук (п.8 ТЗ). */
   videoHidden: z.boolean().default(false),

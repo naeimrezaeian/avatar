@@ -172,6 +172,82 @@ async function main() {
     Object.values(draft.tracks).filter((t) => t.kind === "subtitle").length === 1,
   );
 
+  // --- Видеоподкаст ---
+  const { parseScript, buildOutline, buildPodcastDocument, briefToTurns } = await import(
+    "../src/lib/studio/podcast"
+  );
+  const { PodcastBrief, estimateTurnCount } = await import("@avatar/contracts");
+
+  const alternating = parseScript("Первая реплика.\n\nВторая реплика.\n\nТретья реплика.");
+  check("реплики чередуются без разметки", alternating.map((t) => t.role).join(",") === "host,guest,host");
+
+  const marked = parseScript("Гость: Отвечаю первым.\nВедущий: А теперь спрашиваю.");
+  check("разметка говорящих уважается", marked[0]?.role === "guest" && marked[1]?.role === "host");
+  check("префикс убран из текста", marked[0]?.text === "Отвечаю первым.");
+
+  const outline = buildOutline("Продуктивность", 3);
+  check("длина каркаса соответствует времени", outline.length === estimateTurnCount(3), `${outline.length}`);
+  check("каркас начинается с ведущего", outline[0]?.role === "host");
+  check("каркас заканчивается ведущим", outline.at(-1)?.role === "host");
+  check(
+    "в каркасе есть задания, а не готовый текст",
+    outline.every((t) => t.text.startsWith("[")),
+  );
+
+  const brief = PodcastBrief.parse({
+    title: "Тестовый выпуск",
+    host: { role: "host", avatarId: "avt_demo", voiceId: "voi_demo", displayName: "Ведущий" },
+    guest: { role: "guest", avatarId: "avt_pending", voiceId: "voi_demo", displayName: "Гость" },
+    content: "Первая.\n\nВторая.\n\nТретья.\n\nЧетвёртая.",
+    ownScript: true,
+    resolution: "720p",
+    aspectRatio: "16:9",
+    lengthMinutes: 1,
+    sceneInstructions: "Студия с мягким светом",
+  });
+
+  const podcastTurns = briefToTurns(brief);
+  const doc = buildPodcastDocument("prj_podcast", brief, podcastTurns);
+
+  check("сцен столько же, сколько реплик", doc.sceneOrder.length === 4, `${doc.sceneOrder.length}`);
+  const sceneList = doc.sceneOrder.map((id) => doc.scenes[id]!);
+  check(
+    "аватары чередуются между говорящими",
+    sceneList.map((s) => s.avatarId).join(",") === "avt_demo,avt_pending,avt_demo,avt_pending",
+  );
+  check(
+    "роль говорящего сохранена в сцене",
+    sceneList.map((s) => s.speakerRole).join(",") === "host,guest,host,guest",
+  );
+  check(
+    "указания к кадру попали в промпт",
+    sceneList.every((s) => s.prompt.includes("Студия с мягким светом")),
+  );
+
+  const podcastClips = Object.values(doc.clips).sort((a, b) => a.startSec - b.startSec);
+  check("создан клип на каждую реплику", podcastClips.length === 4);
+  check("клипы идут подряд без наложения", podcastClips.every((clip, index) =>
+    index === 0 || clip.startSec >= podcastClips[index - 1]!.startSec + podcastClips[index - 1]!.durationSec - 0.001,
+  ));
+  check(
+    "говорящие разведены по сторонам кадра",
+    podcastClips.every((clip) =>
+      clip.kind === "avatar"
+        ? clip.transform.anchor === (doc.scenes[clip.sceneId]!.speakerRole === "host" ? "left" : "right")
+        : true,
+    ),
+  );
+  check("дорожки подкаста созданы", doc.trackOrder.length === 3);
+
+  // --- Оформление аватара ---
+  const { AvatarClip, AVATAR_STYLE_DEFAULT } = await import("@avatar/contracts");
+  const styled = AvatarClip.parse({
+    id: "c1", trackId: "t1", kind: "avatar", sceneId: "s1", startSec: 0, durationSec: 5,
+  });
+  check("у клипа аватара есть оформление по умолчанию", styled.style.shape === "original");
+  check("фон по умолчанию исходный", styled.style.background.kind === "original");
+  check("приближение по умолчанию сто процентов", AVATAR_STYLE_DEFAULT.zoomPct === 100);
+
   console.log(failures === 0 ? "\nВСЕ ПРОВЕРКИ ПРОШЛИ" : `\nПРОВАЛЕНО: ${failures}`);
   process.exit(failures === 0 ? 0 : 1);
 }

@@ -140,7 +140,11 @@ export function CreateVoiceDialog({
 
           <div className="grid gap-2">
             <Label htmlFor="voice-language">Язык</Label>
-            <Select value={language} onValueChange={(value) => setLanguage(value as LanguageCode)}>
+            <Select
+              items={{ ru: "Русский", en: "Английский" }}
+              value={language}
+              onValueChange={(value) => setLanguage(value as LanguageCode)}
+            >
               <SelectTrigger id="voice-language">
                 <SelectValue />
               </SelectTrigger>

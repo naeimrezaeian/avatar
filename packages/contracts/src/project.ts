@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AspectRatio, Id, IsoDateTime, Resolution, Seconds, SoftDeletable, Timestamps } from './primitives';
 import { SpeechSettings, SPEECH_SETTINGS_DEFAULT } from './voice';
 import { Clip, Track } from './timeline';
+import { SpeakerRole } from './studio';
 
 /**
  * Границы одной генерации у LongCat-Video-Avatar. Сцена длиннее максимума
@@ -33,6 +34,12 @@ export const Scene = z.object({
    */
   prompt: z.string().max(1000).default(''),
   speech: SpeechSettings.default(SPEECH_SETTINGS_DEFAULT),
+  /**
+   * Кто произносит реплику в диалоговом формате. null — обычная сцена с одним
+   * говорящим; роль нужна, чтобы чередование ведущего и гостя пережило
+   * перестановку сцен.
+   */
+  speakerRole: SpeakerRole.nullable().default(null),
 
   /** Результат первого этапа: синтезированная озвучка. */
   voiceoverAssetId: Id.nullable().default(null),

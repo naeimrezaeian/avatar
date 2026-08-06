@@ -98,6 +98,11 @@ export function ExportDialog({
           <div className="grid gap-2">
             <Label htmlFor="export-resolution">Разрешение</Label>
             <Select
+              items={{
+                "480p": "480p — черновик",
+                "720p": "720p — стандарт",
+                "1080p": "1080p — публикация",
+              }}
               value={resolution}
               onValueChange={(value) => setResolution((value as Resolution) ?? "1080p")}
             >
@@ -119,6 +124,7 @@ export function ExportDialog({
             <div className="grid gap-2">
               <Label htmlFor="export-format">Формат</Label>
               <Select
+                items={{ mp4: "MP4", webm: "WebM", mov: "MOV" }}
                 value={format}
                 onValueChange={(value) => setFormat((value as typeof format) ?? "mp4")}
               >
@@ -136,6 +142,7 @@ export function ExportDialog({
             <div className="grid gap-2">
               <Label htmlFor="export-fps">Частота кадров</Label>
               <Select
+                items={{ "24": "24", "25": "25", "30": "30", "60": "60" }}
                 value={String(fps)}
                 onValueChange={(value) => setFps(Number(value ?? 30) as typeof fps)}
               >
