@@ -109,7 +109,18 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
     );
   }
 
-  dbPromise ??= openDB<AvatarDB>(DB_NAME, DB_VERSION, {
+  // Отдельное обещание, которое отклоняется при блокировке. Бросок исключения
+  // внутри blocked() до вызывающего кода не доходит — это обработчик события, и
+  // openDB продолжает молча ждать. Гонка с этим обещанием превращает блокировку
+  // в обычную ошибку, которую видно сразу, а не через таймаут.
+  let rejectOnBlocked: (error: Error) => void = () => {};
+  const blockedSignal = new Promise<never>((_, reject) => {
+    rejectOnBlocked = reject;
+  });
+  // Отклонение может остаться никому не нужным, если база откроется нормально.
+  blockedSignal.catch(() => {});
+
+  const opening = openDB<AvatarDB>(DB_NAME, DB_VERSION, {
     // Шаги накопительные и идут по возрастанию версии: браузер вызывает
     // upgrade один раз с той версией, которая лежит у пользователя, и она может
     // быть любой из прошлых. Ранний выход по «база уже есть» пропустил бы
@@ -177,8 +188,10 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
      * соединение и сообщаем пользователю, что происходит.
      */
     blocked() {
-      throw new Error(
-        "Приложение открыто в другой вкладке со старой версией хранилища. Закройте остальные вкладки и обновите страницу.",
+      rejectOnBlocked(
+        new Error(
+          "Приложение открыто в другой вкладке со старой версией хранилища. Закройте остальные вкладки и обновите страницу.",
+        ),
       );
     },
 
@@ -186,7 +199,9 @@ export function getDb(): Promise<IDBPDatabase<AvatarDB>> {
     terminated() {
       dbPromise = null;
     },
-  }).catch((error: unknown) => {
+  });
+
+  dbPromise = Promise.race([opening, blockedSignal]).catch((error: unknown) => {
     // Иначе следующий вызов вернёт то же отклонённое обещание, и приложение
     // не сможет восстановиться даже после перезагрузки вкладки-блокировщика.
     dbPromise = null;
