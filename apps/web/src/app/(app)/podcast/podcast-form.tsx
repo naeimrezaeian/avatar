@@ -4,13 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, Info, Loader2, Mic, Upload, Wand2 } from "lucide-react";
+import { ArrowLeftRight, Loader2, Upload, UserRound, Wand2 } from "lucide-react";
 import {
   PODCAST_LENGTH_MINUTES,
   PodcastBrief,
   estimateCostSeconds,
-  isAvatarUsable,
   podcastDurationSec,
+  primaryImage,
   secondsToMinutesLabel,
   type AspectRatio,
   type Avatar,
@@ -19,12 +19,10 @@ import {
 } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useSession } from "@/lib/auth/session-context";
-import { briefToTurns, buildPodcastDocument } from "@/lib/studio/podcast";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
-import { AspectRatioPicker } from "@/components/aspect-ratio-picker";
+import { briefToTurns, buildPodcastDocument } from "@/lib/studio/podcast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,17 +32,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { primaryImage } from "@avatar/contracts";
+import { SpeakerCard } from "./speaker-card";
+
+const LAYOUT_LABELS: Record<AspectRatio, string> = {
+  "16:9": "16:9 — горизонтальное",
+  "9:16": "9:16 — вертикальное",
+  "1:1": "1:1 — квадратное",
+};
 
 export function PodcastForm() {
   const router = useRouter();
   const { user } = useSession();
 
   const [title, setTitle] = useState("Новый подкаст");
-  const [hostId, setHostId] = useState("");
-  const [guestId, setGuestId] = useState("");
+  const [hostAvatarId, setHostAvatarId] = useState("");
+  const [hostVoiceId, setHostVoiceId] = useState("");
+  const [guestAvatarId, setGuestAvatarId] = useState("");
+  const [guestVoiceId, setGuestVoiceId] = useState("");
   const [content, setContent] = useState("");
   const [ownScript, setOwnScript] = useState(false);
   const [resolution, setResolution] = useState<Resolution>("720p");
@@ -58,44 +65,55 @@ export function PodcastForm() {
   });
   const voices = useQuery({ queryKey: queryKeys.voices, queryFn: () => dataClient.voices.list() });
 
-  const usable = (avatars.data ?? []).filter((avatar) =>
-    isAvatarUsable(avatar, voices.data?.find((v) => v.id === avatar.voiceId)?.status ?? null),
-  );
+  const avatarList = avatars.data ?? [];
+  const voiceList = (voices.data ?? []).filter((voice) => voice.status === "ready");
 
-  const host = usable.find((item) => item.id === hostId) ?? null;
-  const guest = usable.find((item) => item.id === guestId) ?? null;
+  /**
+   * Выбор выводится, а не записывается в состояние при загрузке справочников:
+   * форма должна открываться заполненной, но подставленное значение не должно
+   * перетирать выбор пользователя.
+   */
+  const host = avatarList.find((item) => item.id === hostAvatarId) ?? avatarList[0] ?? null;
+  const guest =
+    avatarList.find((item) => item.id === guestAvatarId) ??
+    avatarList.find((item) => item.id !== host?.id) ??
+    host;
 
-  const brief = ((): PodcastBrief | null => {
-    if (!host?.voiceId || !guest?.voiceId || content.trim().length === 0) return null;
-    const parsed = PodcastBrief.safeParse({
-      title: title.trim(),
-      host: {
-        role: "host",
-        avatarId: host.id,
-        voiceId: host.voiceId,
-        displayName: host.name,
-      },
-      guest: {
-        role: "guest",
-        avatarId: guest.id,
-        voiceId: guest.voiceId,
-        displayName: guest.name,
-      },
-      content: content.trim(),
-      ownScript,
-      resolution,
-      aspectRatio,
-      lengthMinutes,
-      sceneInstructions: sceneInstructions.trim(),
-    });
-    return parsed.success ? parsed.data : null;
-  })();
+  const effectiveHostVoice = hostVoiceId || host?.voiceId || voiceList[0]?.id || "";
+  const effectiveGuestVoice = guestVoiceId || guest?.voiceId || voiceList[0]?.id || "";
+
+  const bothReady = host?.status === "ready" && guest?.status === "ready";
+
+  const brief =
+    host && guest && effectiveHostVoice && effectiveGuestVoice && content.trim().length > 0
+      ? (PodcastBrief.safeParse({
+          title: title.trim() || "Новый подкаст",
+          host: {
+            role: "host",
+            avatarId: host.id,
+            voiceId: effectiveHostVoice,
+            displayName: host.name,
+          },
+          guest: {
+            role: "guest",
+            avatarId: guest.id,
+            voiceId: effectiveGuestVoice,
+            displayName: guest.name,
+          },
+          content: content.trim(),
+          ownScript,
+          resolution,
+          aspectRatio,
+          lengthMinutes,
+          sceneInstructions: sceneInstructions.trim(),
+        }).data ?? null)
+      : null;
 
   const turns = brief ? briefToTurns(brief) : [];
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!brief) throw new Error("Заполните форму");
+      if (!brief) throw new Error("Заполните содержание подкаста");
 
       const project = await dataClient.projects.create({
         title: brief.title,
@@ -109,7 +127,7 @@ export function PodcastForm() {
       });
 
       // Документ, созданный вместе с проектом, заменяется целиком: реплики уже
-      // разложены по дорожкам, и склеивать их с пустой заготовкой незачем.
+      // разложены по дорожкам, склеивать их с пустой заготовкой незачем.
       const document = buildPodcastDocument(project.id, brief, turns);
       const stored = await dataClient.documents.get(project.id);
       await dataClient.documents.save(
@@ -130,15 +148,17 @@ export function PodcastForm() {
     onSuccess: (project) => router.push(`/projects/${project.id}`),
   });
 
-  const durationSec = podcastDurationSec(lengthMinutes);
-  const costSeconds = estimateCostSeconds(durationSec, resolution);
+  const costSeconds = estimateCostSeconds(podcastDurationSec(lengthMinutes), resolution);
 
-  if (usable.length < 2) {
+  if (avatars.isPending || voices.isPending) {
+    return <Skeleton className="h-[70vh] rounded-3xl" />;
+  }
+
+  if (avatarList.length === 0) {
     return (
       <Alert>
         <AlertDescription>
-          Для подкаста нужны два готовых аватара — по одному на ведущего и гостя. Сейчас готово{" "}
-          {usable.length}.{" "}
+          Для подкаста нужен хотя бы один аватар.{" "}
           <Link href="/avatars" className="underline underline-offset-2">
             Создать аватар
           </Link>
@@ -148,144 +168,194 @@ export function PodcastForm() {
   }
 
   return (
-    <div className="max-w-4xl space-y-4">
-      <Card>
-        <CardContent className="space-y-5 pt-5">
-          <div className="grid gap-2">
-            <Label htmlFor="podcast-title">Название выпуска</Label>
-            <Input
-              id="podcast-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </div>
+    <div className="border-border bg-card mx-auto max-w-5xl overflow-hidden rounded-3xl border shadow-soft-lg">
+      <CoverHeader title={title} host={host} guest={guest} />
 
-          <div className="grid items-end gap-3 sm:grid-cols-[1fr_auto_1fr]">
-            <SpeakerPicker
-              label="Ведущий"
-              value={hostId}
-              options={usable.filter((item) => item.id !== guestId)}
-              onChange={setHostId}
-            />
+      <div className="space-y-6 p-5 sm:p-6">
+        <div className="grid gap-2">
+          <Label htmlFor="podcast-title">Название выпуска</Label>
+          <Input
+            id="podcast-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Поменять ролями"
-              className="mb-1 hidden sm:inline-flex"
-              onClick={() => {
-                const previous = hostId;
-                setHostId(guestId);
-                setGuestId(previous);
-              }}
-            >
-              <ArrowLeftRight className="size-4" />
-            </Button>
-
-            <SpeakerPicker
-              label="Гость"
-              value={guestId}
-              options={usable.filter((item) => item.id !== hostId)}
-              onChange={setGuestId}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-4 pt-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label htmlFor="podcast-content">Содержание подкаста</Label>
-
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={ownScript}
-                onChange={(event) => setOwnScript(event.target.checked)}
-                className="accent-primary size-4"
-              />
-              Использовать свой сценарий
-            </label>
-          </div>
-
-          <Textarea
-            id="podcast-content"
-            rows={8}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder={
-              ownScript
-                ? "Реплики построчно. Можно помечать говорящего: «Ведущий: ...», «Гость: ...» — иначе реплики чередуются по порядку."
-                : "Тема выпуска: о чём говорить, какие вопросы разобрать, для кого этот выпуск."
-            }
+        <div className="grid items-center gap-3 lg:grid-cols-[1fr_auto_1fr]">
+          <SpeakerCard
+            label="Ведущий"
+            avatars={avatarList}
+            voices={voiceList}
+            avatarId={host?.id ?? ""}
+            voiceId={effectiveHostVoice}
+            onAvatarChange={setHostAvatarId}
+            onVoiceChange={setHostVoiceId}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <label>
-              <span className="border-border hover:bg-muted inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                <Upload className="size-4" />
-                Загрузить документ
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Поменять ведущего и гостя местами"
+            className="mx-auto"
+            onClick={() => {
+              const previousHost = host?.id ?? "";
+              const previousHostVoice = effectiveHostVoice;
+              setHostAvatarId(guest?.id ?? "");
+              setHostVoiceId(effectiveGuestVoice);
+              setGuestAvatarId(previousHost);
+              setGuestVoiceId(previousHostVoice);
+            }}
+          >
+            <ArrowLeftRight className="size-4" />
+          </Button>
+
+          <SpeakerCard
+            label="Гость"
+            avatars={avatarList}
+            voices={voiceList}
+            avatarId={guest?.id ?? ""}
+            voiceId={effectiveGuestVoice}
+            onAvatarChange={setGuestAvatarId}
+            onVoiceChange={setGuestVoiceId}
+          />
+        </div>
+
+        {host?.id === guest?.id ? (
+          <p className="text-muted-foreground text-sm">
+            Ведущий и гость — один и тот же аватар. Разговор соберётся, но собеседников будет
+            различать только голос: выберите разные голоса или создайте второго аватара.
+          </p>
+        ) : null}
+
+        <div className="grid gap-2">
+          <Label htmlFor="podcast-content">Содержание подкаста</Label>
+
+          <div className="border-border focus-within:border-ring rounded-2xl border transition-colors">
+            <Textarea
+              id="podcast-content"
+              rows={8}
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              placeholder={
+                ownScript
+                  ? "Реплики построчно. Говорящего можно пометить: «Ведущий: …», «Гость: …» — иначе реплики чередуются по абзацам."
+                  : "Тема выпуска: о чём говорить, какие вопросы разобрать, для кого этот выпуск."
+              }
+              className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+            />
+
+            <div className="border-border flex flex-wrap items-center gap-3 border-t px-3 py-2">
+              <label>
+                <span
+                  className="border-border hover:bg-muted flex size-8 cursor-pointer items-center justify-center rounded-full border"
+                  title="Загрузить документ (TXT, Markdown)"
+                >
+                  <Upload className="size-4" />
+                </span>
+                <input
+                  type="file"
+                  accept=".txt,.md,text/plain,text/markdown"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    // Только текстовые форматы: разбор docx и pdf — работа
+                    // сервера, и делать вид, что он происходит здесь, нельзя.
+                    setContent(await file.text());
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+
+              <span className="bg-border h-5 w-px" />
+
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={ownScript}
+                  onChange={(event) => setOwnScript(event.target.checked)}
+                  className="accent-primary size-4"
+                />
+                Использовать свой сценарий
+              </label>
+
+              <span className="text-muted-foreground ml-auto text-xs">
+                {content.trim().length > 0 ? `Реплик: ${turns.length}` : "TXT и Markdown"}
               </span>
-              <input
-                type="file"
-                accept=".txt,.md,text/plain,text/markdown"
-                className="hidden"
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  // Читаем только текстовые форматы: разбор docx и pdf — работа
-                  // сервера, и притворяться, что он умеет это здесь, нельзя.
-                  setContent(await file.text());
-                  event.target.value = "";
-                }}
-              />
-            </label>
-            <span className="text-muted-foreground text-xs">Пока поддерживаются TXT и Markdown</span>
+            </div>
           </div>
 
           {!ownScript ? (
             <Alert>
               <Wand2 className="size-4" />
               <AlertDescription>
-                Из темы строится структура разговора: кто говорит, в каком порядке и о чём. Текст
-                реплик придумывает языковая модель — её подключение относится к серверной части,
-                поэтому сейчас в сценах появятся задания вида «вопрос по теме», а не готовые
-                фразы. Включите «свой сценарий», если текст уже написан.
+                Из темы строится структура разговора: кто говорит, в каком порядке и о чём. Сам
+                текст реплик пишет языковая модель — она относится к серверной части, поэтому
+                сейчас в сценах появятся задания вроде «вопрос по теме», а не готовые фразы.
+                Включите «свой сценарий», если текст уже написан.
               </AlertDescription>
             </Alert>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardContent className="space-y-5 pt-5">
-          <div className="grid gap-2">
-            <Label>Качество</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["480p", "720p", "1080p"] as Resolution[]).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setResolution(option)}
+        <div className="grid gap-2">
+          <Label>Качество</Label>
+          <div className="bg-muted/60 grid grid-cols-2 gap-1 rounded-full p-1">
+            {(
+              [
+                { value: "720p", title: "Стандартное" },
+                { value: "1080p", title: "Высокое" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setResolution(option.value)}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-colors",
+                  resolution === option.value
+                    ? "bg-card font-medium shadow-soft"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option.title}
+                <span
                   className={cn(
-                    "rounded-xl border px-3 py-2 text-sm transition-colors",
-                    option === resolution
-                      ? "border-ring bg-accent/40 font-medium"
-                      : "border-border hover:bg-muted/60",
+                    "rounded-full px-2 py-0.5 text-xs",
+                    resolution === option.value
+                      ? "bg-gradient-accent text-white"
+                      : "bg-muted-foreground/15",
                   )}
                 >
-                  {option}
-                </button>
-              ))}
-            </div>
+                  {option.value}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor="podcast-layout">Формат кадра</Label>
+            <Select
+              items={LAYOUT_LABELS}
+              value={aspectRatio}
+              onValueChange={(value) => setAspectRatio((value as AspectRatio) ?? "16:9")}
+            >
+              <SelectTrigger id="podcast-layout">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(LAYOUT_LABELS) as AspectRatio[]).map((ratio) => (
+                  <SelectItem key={ratio} value={ratio}>
+                    {LAYOUT_LABELS[ratio]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
-            <Label>Формат кадра</Label>
-            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} />
-          </div>
-
-          <div className="grid gap-2 sm:max-w-xs">
             <Label htmlFor="podcast-length">Длительность</Label>
             <Select
               items={Object.fromEntries(
@@ -306,101 +376,104 @@ export function PodcastForm() {
               </SelectContent>
             </Select>
           </div>
+        </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="podcast-instructions">Указания к постановке кадра</Label>
-            <Textarea
-              id="podcast-instructions"
-              rows={2}
-              value={sceneInstructions}
-              onChange={(event) => setSceneInstructions(event.target.value)}
-              placeholder="Ракурсы, обстановка студии, как должны выглядеть собеседники"
-            />
-          </div>
-        </CardContent>
-      </Card>
+        <div className="grid gap-2">
+          <Label htmlFor="podcast-instructions">
+            Указания к кадру <span className="text-muted-foreground">(необязательно)</span>
+          </Label>
+          <Textarea
+            id="podcast-instructions"
+            rows={3}
+            value={sceneInstructions}
+            onChange={(event) => setSceneInstructions(event.target.value)}
+            placeholder="Ракурсы, обстановка студии, как должны выглядеть собеседники"
+          />
+        </div>
 
-      <Card>
-        <CardContent className="space-y-3 pt-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">Будет создано реплик: {turns.length || "—"}</span>
-            <span className="text-muted-foreground text-sm tabular-nums">
-              Оценка стоимости: {secondsToMinutesLabel(costSeconds)} мин кредитов
-            </span>
-          </div>
+        {!bothReady ? (
+          <p className="text-warning text-sm">
+            Один из аватаров ещё готовится. Подкаст создать можно, но запустить генерацию
+            получится только когда оба будут готовы.
+          </p>
+        ) : null}
+      </div>
 
-          <Alert>
-            <Info className="size-4" />
-            <AlertDescription>
-              Получится обычный проект: реплики станут сценами, разложенными по дорожкам. Дальше
-              их можно править, переставлять и генерировать поштучно — как в любом проекте.
-            </AlertDescription>
-          </Alert>
+      <div className="border-border bg-muted/30 flex flex-wrap items-center gap-3 border-t px-5 py-4 sm:px-6">
+        <div className="text-muted-foreground text-sm">
+          {content.trim().length === 0
+            ? "Добавьте содержание, чтобы создать подкаст"
+            : `Будет создано реплик: ${turns.length} · оценка ${secondsToMinutesLabel(costSeconds)} мин кредитов`}
+        </div>
 
-          {create.error ? (
-            <p className="text-destructive text-sm">{create.error.message}</p>
-          ) : null}
+        <div className="ml-auto flex gap-2">
+          <Button variant="ghost" nativeButton={false} render={<Link href="/projects" />}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => create.mutate()}
+            disabled={brief === null || create.isPending}
+            className="bg-gradient-accent text-white hover:opacity-90"
+          >
+            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Создать подкаст
+          </Button>
+        </div>
+      </div>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" nativeButton={false} render={<Link href="/projects" />}>
-              Отмена
-            </Button>
-            <Button
-              onClick={() => create.mutate()}
-              disabled={brief === null || create.isPending}
-              className="bg-gradient-accent text-white hover:opacity-90"
-            >
-              {create.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mic className="size-4" />}
-              Создать подкаст
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {create.error ? (
+        <p className="text-destructive px-5 pb-4 text-sm sm:px-6">{create.error.message}</p>
+      ) : null}
     </div>
   );
 }
 
-function SpeakerPicker({
-  label,
-  value,
-  options,
-  onChange,
+/**
+ * Шапка с обложкой. Лица собеседников вынесены на неё, потому что подкаст — это
+ * прежде всего про то, кто разговаривает.
+ */
+function CoverHeader({
+  title,
+  host,
+  guest,
 }: {
-  label: string;
-  value: string;
-  options: Avatar[];
-  onChange: (value: string) => void;
+  title: string;
+  host: Avatar | null;
+  guest: Avatar | null;
 }) {
-  const selected = options.find((item) => item.id === value) ?? null;
-  const imageUrl = useAssetUrl(selected ? primaryImage(selected)?.assetId : null);
+  const hostImage = useAssetUrl(host ? primaryImage(host)?.assetId : null);
+  const guestImage = useAssetUrl(guest ? primaryImage(guest)?.assetId : null);
 
   return (
-    <div className="grid gap-2">
-      <Label>{label}</Label>
-      <div className="border-border flex items-center gap-3 rounded-xl border p-2">
-        <span className="bg-muted size-12 shrink-0 overflow-hidden rounded-full">
-          {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- локальный object URL, оптимизатор next/image к нему не применим
-            <img src={imageUrl} alt="" className="size-full object-cover" />
-          ) : null}
-        </span>
-        <Select
-          items={Object.fromEntries(options.map((option) => [option.id, option.name]))}
-          value={value}
-          onValueChange={(next) => onChange(next ?? "")}
-        >
-          <SelectTrigger className="border-0 shadow-none">
-            <SelectValue placeholder="Выберите аватар" />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
-                {option.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="bg-gradient-accent relative h-44 sm:h-56">
+      <div className="absolute inset-0 bg-black/10" />
+
+      <div className="absolute right-5 bottom-5 flex sm:right-6">
+        <Face url={hostImage} />
+        <Face url={guestImage} className="-ml-5" />
       </div>
+
+      <h2 className="absolute bottom-5 left-5 max-w-[55%] truncate text-2xl font-semibold text-white sm:left-6 sm:text-3xl">
+        {title || "Новый подкаст"}
+      </h2>
     </div>
+  );
+}
+
+function Face({ url, className }: { url: string | null; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "bg-muted ring-card flex size-16 items-center justify-center overflow-hidden rounded-full ring-3 sm:size-20",
+        className,
+      )}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- локальный object URL, оптимизатор next/image к нему не применим
+        <img src={url} alt="" className="size-full object-cover" />
+      ) : (
+        <UserRound className="text-muted-foreground size-6" />
+      )}
+    </span>
   );
 }
