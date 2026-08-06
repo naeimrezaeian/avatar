@@ -315,7 +315,7 @@ function Ruler({
       {ticks.map((second) => (
         <span
           key={second}
-          className="text-muted-foreground absolute top-0 flex h-full items-center pl-1 text-[10px] tabular-nums"
+          className="text-muted-foreground absolute top-0 flex h-full items-center pl-1 text-[11px] tabular-nums"
           style={{ left: second * pixelsPerSecond }}
         >
           <span className={cn("bg-border absolute top-0 left-0 h-2 w-px")} />

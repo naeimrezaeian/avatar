@@ -151,7 +151,7 @@ export function ClipView({
         <Waveform peaks={asset.waveformPeaks} />
       ) : null}
 
-      <span className="pointer-events-none absolute inset-x-1.5 top-1 flex items-center gap-1 truncate text-[11px] font-medium">
+      <span className="pointer-events-none absolute inset-x-1.5 top-1 flex items-center gap-1 truncate text-xs font-medium">
         {locked ? <Lock className="size-2.5 shrink-0 opacity-80" /> : null}
         <span className="truncate">{label}</span>
       </span>

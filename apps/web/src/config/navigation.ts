@@ -63,7 +63,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         href: "/admin",
-        label: "Панель администратора",
+        label: "Панель",
         icon: ShieldCheck,
         permission: "stats.read",
       },

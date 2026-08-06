@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.goto('http://127.0.0.1:3000/dashboard', { waitUntil: 'networkidle' });
+await page.waitForTimeout(2500);
+await page.getByRole('button', { name: 'Подставить' }).click();
+await page.getByRole('button', { name: 'Войти' }).click();
+await page.waitForURL('**/dashboard', { timeout: 30000 });
+await page.waitForTimeout(3000);
+await page.screenshot({ path: process.argv[2] || '/tmp/shot-dashboard.png' });
+await page.goto('http://127.0.0.1:3000/projects/prj_demo', { waitUntil: 'networkidle' });
+await page.waitForTimeout(3000);
+await page.screenshot({ path: (process.argv[2] || '/tmp/shot').replace('.png','') + '-workspace.png' });
+await browser.close();
+console.log('готово');

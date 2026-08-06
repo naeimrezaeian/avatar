@@ -185,7 +185,7 @@ export function CreateAvatarDialog({
                     />
                   </button>
                   {index === primaryIndex ? (
-                    <span className="bg-gradient-accent absolute bottom-1 left-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    <span className="bg-gradient-accent absolute bottom-1 left-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium text-white">
                       <Check className="size-2.5" />
                       Основная
                     </span>
@@ -203,7 +203,7 @@ export function CreateAvatarDialog({
 
               <label className="border-border bg-muted/40 hover:bg-muted/70 flex aspect-3/4 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed transition-colors">
                 <ImagePlus className="text-muted-foreground size-5" />
-                <span className="text-muted-foreground text-[10px]">Добавить</span>
+                <span className="text-muted-foreground text-[11px]">Добавить</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"

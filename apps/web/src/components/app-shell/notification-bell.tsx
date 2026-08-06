@@ -27,7 +27,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     >
       <Bell className="size-4" />
       {count > 0 ? (
-        <span className="bg-gradient-accent absolute top-1 right-1 flex size-4 items-center justify-center rounded-full text-[10px] font-semibold text-white">
+        <span className="bg-gradient-accent absolute top-1 right-1 flex size-4 items-center justify-center rounded-full text-[11px] font-semibold text-white">
           {count > 9 ? "9+" : count}
         </span>
       ) : null}
