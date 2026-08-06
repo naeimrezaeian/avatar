@@ -24,7 +24,7 @@ import {
 import { dataClient, queryKeys } from "@/lib/data";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
 import { aspectRatioLabel, formatDuration, formatUpdatedAt } from "@/lib/format";
-import { ParticipantFaces } from "@/components/podcast/participant-faces";
+import { PodcastHeader } from "@/components/podcast/podcast-header";
 import { PreviewPlayer } from "@/components/preview/preview-player";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -171,12 +171,20 @@ export function PodcastDetail({ projectId }: { projectId: string }) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
         <Card className="overflow-hidden pt-0">
-          <div className="bg-gradient-accent relative flex h-36 items-end justify-center sm:h-44">
-            <div className="absolute inset-0 bg-black/10" />
-            <ParticipantFaces avatars={participants} size="lg" className="relative -mb-9" />
-          </div>
+          <PodcastHeader
+            title={project.data.title}
+            subtitle={participants
+              .map((avatar) => avatar?.name ?? "удалённый аватар")
+              .join(" и ")}
+            chips={[
+              project.data.aspectRatio,
+              `${scenes.length} реплик`,
+              formatDuration(project.data.durationSec),
+            ]}
+            participants={participants}
+          />
 
-          <CardContent className="space-y-4 pt-12">
+          <CardContent className="space-y-4 pt-5">
             {renderVersions.length > 0 ? (
               <ReadyVideos versions={renderVersions} />
             ) : (

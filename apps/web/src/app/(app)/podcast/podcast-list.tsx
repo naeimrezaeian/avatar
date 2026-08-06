@@ -87,14 +87,15 @@ function PodcastCard({
   return (
     <Link href={`/podcast/${project.id}`} className="block">
       <Card className="overflow-hidden pt-0 shadow-soft transition-shadow hover:shadow-soft-lg">
-        {/* Обложка с лицами участников: подкаст узнают по собеседникам, а не по
-            названию файла. */}
-        <div className="bg-gradient-accent relative flex h-32 items-end justify-center">
-          <div className="absolute inset-0 bg-black/10" />
-          <ParticipantFaces avatars={participants} size="md" className="relative -mb-7" />
+        {/* Лица участников: подкаст узнают по собеседникам, а не по названию.
+            Градиент оставлен тонкой линией — сплошная заливка спорила бы со
+            светлым интерфейсом и перетягивала внимание на декорацию. */}
+        <div className="bg-gradient-accent h-1 w-full" />
+        <div className="bg-muted/30 border-border flex items-center justify-center border-b py-4">
+          <ParticipantFaces avatars={participants} size="md" />
         </div>
 
-        <CardContent className="space-y-2 pt-9">
+        <CardContent className="space-y-2 pt-4">
           <div className="flex items-start justify-between gap-2">
             <p className="min-w-0 flex-1 truncate font-medium">{project.title}</p>
             {readyCount > 0 ? (

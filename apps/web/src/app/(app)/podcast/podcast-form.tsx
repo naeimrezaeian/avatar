@@ -4,22 +4,19 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeftRight, Loader2, Upload, UserRound, Wand2 } from "lucide-react";
+import { ArrowLeftRight, Loader2, Upload, Wand2 } from "lucide-react";
 import {
   PODCAST_LENGTH_MINUTES,
   PodcastBrief,
   estimateCostSeconds,
   podcastDurationSec,
-  primaryImage,
   secondsToMinutesLabel,
   type AspectRatio,
-  type Avatar,
   type PodcastLength,
   type Resolution,
 } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useSession } from "@/lib/auth/session-context";
-import { useAssetUrl } from "@/lib/data/use-asset-url";
 import { briefToTurns, buildPodcastDocument } from "@/lib/studio/podcast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -35,6 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { PodcastHeader } from "@/components/podcast/podcast-header";
 import { StepSection } from "@/components/podcast/step-section";
 import { SpeakerCard } from "./speaker-card";
 
@@ -173,13 +171,10 @@ export function PodcastForm() {
 
   return (
     <div className="border-border bg-card mx-auto max-w-5xl overflow-hidden rounded-3xl border shadow-soft-lg">
-      <CoverHeader
+      <PodcastHeader
         title={title}
-        host={host}
-        guest={guest}
-        aspectRatio={aspectRatio}
-        lengthMinutes={lengthMinutes}
-        resolution={resolution}
+        chips={[aspectRatio, `${lengthMinutes} мин`, resolution]}
+        participants={[host, guest]}
       />
 
       <div className="space-y-8 p-5 sm:p-8">
@@ -488,84 +483,6 @@ function SummaryChip({ children, tone }: { children: ReactNode; tone?: "warning"
       )}
     >
       {children}
-    </span>
-  );
-}
-
-/**
- * Шапка выпуска. Лица собеседников и текущие настройки вынесены сюда: подкаст
- * узнают по тому, кто разговаривает, а настройки на обложке избавляют от
- * прокрутки вниз ради проверки.
- */
-function CoverHeader({
-  title,
-  host,
-  guest,
-  aspectRatio,
-  lengthMinutes,
-  resolution,
-}: {
-  title: string;
-  host: Avatar | null;
-  guest: Avatar | null;
-  aspectRatio: AspectRatio;
-  lengthMinutes: PodcastLength;
-  resolution: Resolution;
-}) {
-  const hostImage = useAssetUrl(host ? primaryImage(host)?.assetId : null);
-  const guestImage = useAssetUrl(guest ? primaryImage(guest)?.assetId : null);
-
-  return (
-    <div className="relative h-56 overflow-hidden sm:h-60">
-      <div className="bg-gradient-accent absolute inset-0" />
-      {/* Мягкие световые пятна дают глубину: ровная заливка выглядит плоской
-          заглушкой, а не обложкой. */}
-      <div className="absolute -top-20 -left-16 size-72 rounded-full bg-white/25 blur-3xl" />
-      <div className="absolute -right-16 -bottom-24 size-80 rounded-full bg-black/20 blur-3xl" />
-      <div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent" />
-
-      <div className="absolute right-5 bottom-6 flex sm:right-8">
-        <Face url={hostImage} />
-        <Face url={guestImage} className="-ml-6" />
-      </div>
-
-      <div className="absolute bottom-6 left-5 max-w-[58%] sm:left-8">
-        <p className="text-xs font-medium tracking-widest text-white/75 uppercase">Видеоподкаст</p>
-        <h2 className="mt-1 truncate text-2xl font-semibold text-white sm:text-3xl">
-          {title || "Новый подкаст"}
-        </h2>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <CoverChip>{aspectRatio}</CoverChip>
-          <CoverChip>{lengthMinutes} мин</CoverChip>
-          <CoverChip>{resolution}</CoverChip>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CoverChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-      {children}
-    </span>
-  );
-}
-
-function Face({ url, className }: { url: string | null; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "bg-muted flex size-20 items-center justify-center overflow-hidden rounded-full ring-4 ring-white/80 sm:size-24",
-        className,
-      )}
-    >
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element -- локальный object URL, оптимизатор next/image к нему не применим
-        <img src={url} alt="" className="size-full object-cover" />
-      ) : (
-        <UserRound className="text-muted-foreground size-8" />
-      )}
     </span>
   );
 }
