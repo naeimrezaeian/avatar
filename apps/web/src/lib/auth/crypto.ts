@@ -11,6 +11,29 @@
 const ITERATIONS = 210_000;
 const KEY_LENGTH_BITS = 256;
 
+export class InsecureContextError extends Error {
+  constructor() {
+    super(
+      "Страница открыта не в защищённом контексте, поэтому браузер не даёт доступ к криптографии. " +
+        "Откройте приложение по адресу localhost или 127.0.0.1 — либо запустите сервер по HTTPS, " +
+        "если нужен доступ с другого устройства.",
+    );
+    this.name = "InsecureContextError";
+  }
+}
+
+/**
+ * WebCrypto доступен только в защищённом контексте: по обычному HTTP браузер
+ * считает доверенными лишь localhost и 127.0.0.1. При открытии по адресу в
+ * локальной сети crypto.subtle отсутствует, и попытка им воспользоваться даёт
+ * невнятное «Cannot read properties of undefined». Проверяем явно, чтобы
+ * причина и способ исправления были названы сразу.
+ */
+function subtle(): SubtleCrypto {
+  if (typeof crypto === "undefined" || !crypto.subtle) throw new InsecureContextError();
+  return crypto.subtle;
+}
+
 function toHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
     .map((byte) => byte.toString(16).padStart(2, "0"))
@@ -30,7 +53,7 @@ export function generateSalt(): string {
 }
 
 export async function hashPassword(password: string, saltHex: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
+  const key = await subtle().importKey(
     "raw",
     new TextEncoder().encode(password),
     "PBKDF2",
@@ -38,7 +61,7 @@ export async function hashPassword(password: string, saltHex: string): Promise<s
     ["deriveBits"],
   );
 
-  const bits = await crypto.subtle.deriveBits(
+  const bits = await subtle().deriveBits(
     {
       name: "PBKDF2",
       salt: fromHex(saltHex) as BufferSource,
@@ -71,6 +94,6 @@ export function generateToken(): string {
 }
 
 export async function hashToken(token: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  const digest = await subtle().digest("SHA-256", new TextEncoder().encode(token));
   return toHex(digest);
 }

@@ -90,7 +90,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   if (error !== null) {
     return (
       <div className="border-destructive/40 bg-destructive/5 rounded-2xl border p-6">
-        <p className="text-destructive text-sm font-medium">Хранилище недоступно</p>
+        <p className="text-destructive text-sm font-medium">
+          {error.includes("защищённом контексте") ? "Небезопасный адрес" : "Хранилище недоступно"}
+        </p>
         <p className="text-muted-foreground mt-1 text-sm">{error}</p>
         <button
           type="button"

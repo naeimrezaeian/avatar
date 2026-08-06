@@ -46,7 +46,7 @@ export function VideosClient() {
           проекта собрана, — поэтому к предыдущей всегда можно вернуться.
         </p>
         <Button
-          render={<Link href="/projects" />}
+          nativeButton={false} render={<Link href="/projects" />}
           className="bg-gradient-accent mt-5 text-white hover:opacity-90"
         >
           К проектам

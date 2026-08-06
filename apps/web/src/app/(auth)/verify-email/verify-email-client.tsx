@@ -49,7 +49,7 @@ export function VerifyEmailClient({ token }: { token: string | null }) {
             <h1 className="text-lg font-semibold">Адрес подтверждён</h1>
             <p className="text-muted-foreground text-sm">Теперь можно войти в кабинет.</p>
             <Button
-              render={<Link href="/login" />}
+              nativeButton={false} render={<Link href="/login" />}
               className="bg-gradient-accent w-full text-white hover:opacity-90"
             >
               Войти
@@ -60,7 +60,7 @@ export function VerifyEmailClient({ token }: { token: string | null }) {
             <XCircle className="text-destructive mx-auto size-10" />
             <h1 className="text-lg font-semibold">Не получилось</h1>
             <p className="text-muted-foreground text-sm">{state.message}</p>
-            <Button variant="secondary" render={<Link href="/login" />} className="w-full">
+            <Button variant="secondary" nativeButton={false} render={<Link href="/login" />} className="w-full">
               К странице входа
             </Button>
           </>

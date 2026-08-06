@@ -94,7 +94,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       <Card>
         <CardContent className="pt-6 text-center">
           <p className="text-muted-foreground text-sm">Проект не найден или был удалён.</p>
-          <Button variant="ghost" render={<Link href="/projects" />} className="mt-3">
+          <Button variant="ghost" nativeButton={false} render={<Link href="/projects" />} className="mt-3">
             К списку проектов
           </Button>
         </CardContent>
@@ -165,7 +165,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" render={<Link href="/projects" />} aria-label="Назад">
+        <Button variant="ghost" size="icon" nativeButton={false} render={<Link href="/projects" />} aria-label="Назад">
           <ArrowLeft className="size-4" />
         </Button>
         <div className="min-w-0 flex-1">

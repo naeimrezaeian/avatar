@@ -13,7 +13,8 @@
     "check": "npm run check:data && npm run check:editor && npm run check:auth && npm run check:admin && npm run check:system",
     "check:auth": "tsx scripts/auth-check.ts",
     "check:admin": "tsx scripts/admin-check.ts",
-    "check:system": "tsx scripts/system-check.ts"
+    "check:system": "tsx scripts/system-check.ts",
+    "check:browser": "node scripts/diag.mjs"
   },
   "dependencies": {
     "@avatar/contracts": "*",
@@ -43,6 +44,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "fake-indexeddb": "^6.2.5",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.9",
     "typescript": "^5"

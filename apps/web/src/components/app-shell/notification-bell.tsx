@@ -21,7 +21,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     <Button
       variant="ghost"
       size="icon"
-      render={<Link href="/notifications" />}
+      nativeButton={false} render={<Link href="/notifications" />}
       aria-label={count > 0 ? `Уведомления, непрочитанных: ${count}` : "Уведомления"}
       className="relative"
     >
