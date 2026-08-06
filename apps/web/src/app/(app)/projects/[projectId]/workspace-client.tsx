@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
@@ -13,8 +13,11 @@ import {
 } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { newId } from "@/lib/data/db";
-import { useProjectDocument } from "@/lib/data/use-project-document";
+import { useEditorStore } from "@/lib/editor/store";
+import { syncSceneClips } from "@/lib/editor/operations";
+import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-session";
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
+import { Timeline } from "@/components/timeline/timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +26,13 @@ import { SceneEditor } from "./scene-editor";
 
 export function WorkspaceClient({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const session = useEditorSession(projectId);
+  useUndoShortcuts();
+
+  const document = useEditorStore((state) => state.document);
+  const apply = useEditorStore((state) => state.apply);
+  const dirty = useEditorStore((state) => state.dirty);
 
   const project = useQuery({
     queryKey: queryKeys.project(projectId),
@@ -37,15 +47,41 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
     queryFn: () => dataClient.jobs.list({ projectId }),
   });
 
-  const { document, isPending, update, isSaving, conflict } = useProjectDocument(projectId);
+  /**
+   * Движок генерации пишет результат сцены прямо в хранилище, а редактор держит
+   * документ в памяти. Полная перезагрузка после каждой задачи стирала бы
+   * несохранённые правки, поэтому при успехе переносятся только порождённые
+   * поля сцены — и по ним раскладываются клипы.
+   */
+  useEffect(() => {
+    return dataClient.generation.subscribe((event) => {
+      if (event.status !== "succeeded") return;
 
-  // Выбор выводится, а не синхронизируется эффектом: до загрузки документа
-  // список сцен неизвестен, а после удаления выбранной сцены хранимый id
-  // указывал бы в пустоту.
-  const activeSceneId =
-    selectedId !== null && document?.scenes[selectedId] ? selectedId : (document?.sceneOrder[0] ?? null);
+      void dataClient.jobs.get(event.jobId).then(async (job) => {
+        if (!job || job.projectId !== projectId || job.sceneId === null) return;
 
-  if (isPending || project.isPending) {
+        const stored = await dataClient.documents.get(projectId);
+        const generated = stored?.scenes[job.sceneId];
+        if (!generated) return;
+
+        apply(
+          (draft) => {
+            const scene = draft.scenes[generated.id];
+            if (!scene) return;
+            scene.voiceoverAssetId = generated.voiceoverAssetId;
+            scene.videoAssetId = generated.videoAssetId;
+            scene.voiceoverInputHash = generated.voiceoverInputHash;
+            scene.videoInputHash = generated.videoInputHash;
+            scene.durationSec = generated.durationSec;
+            syncSceneClips(draft, scene);
+          },
+          { label: "Результат генерации", skipHistory: true },
+        );
+      });
+    });
+  }, [projectId, apply]);
+
+  if (session.isPending || project.isPending) {
     return <Skeleton className="h-96 rounded-2xl" />;
   }
 
@@ -61,6 +97,13 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       </Card>
     );
   }
+
+  // Выбор выводится из документа: хранимый id указывал бы в пустоту после
+  // удаления сцены.
+  const activeSceneId =
+    selectedId !== null && document.scenes[selectedId]
+      ? selectedId
+      : (document.sceneOrder[0] ?? null);
 
   const scene = activeSceneId ? (document.scenes[activeSceneId] ?? null) : null;
   const avatar = avatars.data?.find((item) => item.id === scene?.avatarId) ?? null;
@@ -79,41 +122,40 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       voiceId: defaultAvatar.voiceId,
     });
 
-    update((current) => ({
-      ...current,
-      scenes: { ...current.scenes, [created.id]: created },
-      sceneOrder: [...current.sceneOrder, created.id],
-    }));
+    apply(
+      (draft) => {
+        draft.scenes[created.id] = created;
+        draft.sceneOrder.push(created.id);
+      },
+      { label: "Добавление сцены" },
+    );
     setSelectedId(created.id);
   };
 
   const removeScene = (sceneId: string) => {
-    update((current) => {
-      const scenes = { ...current.scenes };
-      delete scenes[sceneId];
-      return {
-        ...current,
-        scenes,
-        sceneOrder: current.sceneOrder.filter((id) => id !== sceneId),
-        // Клипы удалённой сцены висели бы на таймлайне без источника.
-        clips: Object.fromEntries(
-          Object.entries(current.clips).filter(
-            ([, clip]) => !("sceneId" in clip && clip.sceneId === sceneId),
-          ),
-        ),
-      };
-    });
+    apply(
+      (draft) => {
+        delete draft.scenes[sceneId];
+        draft.sceneOrder = draft.sceneOrder.filter((id) => id !== sceneId);
+        // Клипы удалённой сцены остались бы на дорожках без источника.
+        for (const [clipId, clip] of Object.entries(draft.clips)) {
+          if ("sceneId" in clip && clip.sceneId === sceneId) delete draft.clips[clipId];
+        }
+      },
+      { label: "Удаление сцены" },
+    );
   };
 
   const patchScene = (patch: Partial<Scene>) => {
     if (!scene) return;
-    update((current) => ({
-      ...current,
-      scenes: {
-        ...current.scenes,
-        [scene.id]: Scene.parse({ ...current.scenes[scene.id], ...patch }),
+    apply(
+      (draft) => {
+        const target = draft.scenes[scene.id];
+        if (!target) return;
+        Object.assign(target, patch);
       },
-    }));
+      { label: "Правка сцены", coalesceKey: `scene:${scene.id}` },
+    );
   };
 
   return (
@@ -126,12 +168,10 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           <h1 className="truncate text-xl font-semibold">{project.data.title}</h1>
           <p className="text-muted-foreground text-xs">
             {aspectRatioLabel(project.data.aspectRatio)} · {project.data.aspectRatio}
-            {project.data.durationSec > 0
-              ? ` · ${formatDuration(project.data.durationSec)}`
-              : ""}
+            {project.data.durationSec > 0 ? ` · ${formatDuration(project.data.durationSec)}` : ""}
           </p>
         </div>
-        <SaveIndicator isSaving={isSaving} conflict={conflict} />
+        <SaveIndicator dirty={dirty} saveError={session.saveError} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
@@ -182,14 +222,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="pt-5">
-          <p className="text-muted-foreground text-sm">
-            Временная шкала появится следующим шагом: сцены будут раскладываться по дорожкам,
-            а озвучка, музыка и надписи — двигаться и обрезаться независимо.
-          </p>
-        </CardContent>
-      </Card>
+      <Timeline document={document} />
     </div>
   );
 }
@@ -234,9 +267,7 @@ function SceneListItem({
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
       >
-        <span className="text-muted-foreground w-4 shrink-0 text-xs tabular-nums">
-          {index + 1}
-        </span>
+        <span className="text-muted-foreground w-4 shrink-0 text-xs tabular-nums">{index + 1}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{scene.title || "Без названия"}</span>
           <span className="text-muted-foreground block truncate text-xs">
@@ -261,8 +292,8 @@ function SceneListItem({
   );
 }
 
-function SaveIndicator({ isSaving, conflict }: { isSaving: boolean; conflict: Error | null }) {
-  if (conflict) {
+function SaveIndicator({ dirty, saveError }: { dirty: boolean; saveError: Error | null }) {
+  if (saveError) {
     return (
       <span className="text-destructive text-xs">
         Проект изменён в другой вкладке — обновите страницу
@@ -271,7 +302,7 @@ function SaveIndicator({ isSaving, conflict }: { isSaving: boolean; conflict: Er
   }
   return (
     <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-      {isSaving ? (
+      {dirty ? (
         <>
           <Loader2 className="size-3 animate-spin" />
           Сохранение
