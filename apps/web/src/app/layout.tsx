@@ -39,9 +39,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       // suppressHydrationWarning нужен next-themes: класс темы ставится
       // инлайновым скриптом до гидратации, чтобы не было вспышки светлой темы.
       suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      {/* Высота задана единицами вьюпорта, а не процентами: процент считается от
+          высоты родителя, а она здесь auto — цепочка не разрешается, и блоки
+          схлопываются до высоты содержимого. */}
+      <body className="flex min-h-dvh flex-col">
         <Providers>{children}</Providers>
       </body>
     </html>

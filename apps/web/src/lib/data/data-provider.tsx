@@ -6,6 +6,9 @@ import { dataClient, queryKeys } from ".";
 import { onPreparationChange } from "./preparation";
 import { seedIfEmpty } from "./seed";
 
+/** Сколько ждём открытия базы, прежде чем признать её недоступной. */
+const STORAGE_TIMEOUT_MS = 8000;
+
 function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
@@ -60,25 +63,58 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    seedIfEmpty()
+    // Открытие базы может не завершиться вовсе: если другая вкладка держит
+    // старую версию схемы, обновление блокируется молча. Без ограничения по
+    // времени пользователь смотрел бы на пустой экран без объяснений.
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              "Хранилище не отвечает. Скорее всего, приложение открыто в другой вкладке — закройте её и обновите страницу.",
+            ),
+          ),
+        STORAGE_TIMEOUT_MS,
+      );
+    });
+
+    Promise.race([seedIfEmpty(), timeout])
       .then(() => setReady(true))
       .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : "Не удалось открыть локальное хранилище");
+        setError(
+          cause instanceof Error ? cause.message : "Не удалось открыть локальное хранилище",
+        );
       });
   }, []);
 
   if (error !== null) {
     return (
-      <div className="text-destructive p-6 text-sm">
-        Ошибка хранилища: {error}
+      <div className="border-destructive/40 bg-destructive/5 rounded-2xl border p-6">
+        <p className="text-destructive text-sm font-medium">Хранилище недоступно</p>
+        <p className="text-muted-foreground mt-1 text-sm">{error}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="bg-primary text-primary-foreground mt-4 rounded-lg px-3 py-2 text-sm font-medium"
+        >
+          Обновить страницу
+        </button>
       </div>
     );
   }
 
   // Экраны читают данные сразу после монтирования, поэтому рендерим их только
   // после посева — иначе первый запрос вернёт пустой список и мигнёт пустым
-  // состоянием.
-  if (!ready) return null;
+  // состоянием. Показываем скелет, а не пустоту: пустой экран читается как
+  // поломка.
+  if (!ready) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-muted h-8 w-48 animate-pulse rounded-lg" />
+        <div className="bg-muted h-40 animate-pulse rounded-2xl" />
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

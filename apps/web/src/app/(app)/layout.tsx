@@ -20,9 +20,11 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   const account = getCreditAccount();
 
   return (
-    <div className="flex min-h-full">
-      {/* Навигация тёмно-синяя и на светлой теме — п.14 ТЗ. */}
-      <aside className="bg-sidebar hidden w-64 shrink-0 flex-col gap-6 p-4 lg:flex">
+    <div className="flex min-h-dvh flex-1">
+      {/* Навигация тёмно-синяя и на светлой теме — п.14 ТЗ. Прилипает к верху и
+          прокручивается сама: при длинном списке проектов она иначе уезжала бы
+          вместе со страницей. */}
+      <aside className="bg-sidebar sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-6 p-4 lg:flex">
         <Brand className="px-1 pt-1" />
         <div className="flex-1 overflow-y-auto">
           <SidebarNav role={user.role} />
