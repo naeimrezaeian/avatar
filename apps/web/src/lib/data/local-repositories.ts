@@ -37,11 +37,37 @@ import { abortQuietly } from "./tx";
  * дорожек в новом проекте — это шум, а не удобство.
  */
 const DEFAULT_TRACKS: Array<{ kind: TrackKind; name: string }> = [
+  // Фон идёт первым: порядок дорожек задаёт наложение слоёв, и дорожка,
+  // стоящая позже, рисуется выше. Стоя после аватара, подложка закрывала бы
+  // его собой — то есть делала бы ровно обратное тому, ради чего её кладут.
+  { kind: "video", name: "Видео и фон" },
   { kind: "avatar", name: "Аватар" },
   { kind: "voiceover", name: "Озвучивание" },
-  { kind: "video", name: "Видео и фон" },
   { kind: "music", name: "Музыка" },
 ];
+
+/**
+ * Починка порядка слоёв в ранее созданных проектах.
+ *
+ * Первые проекты заводились с подложкой поверх аватара — фон закрывал фигуру.
+ * Правка порядка на чтении дешевле миграции хранилища и не требует от
+ * пользователя ничего: документ всё равно перезаписывается при первом
+ * сохранении.
+ */
+function normalizeLayerOrder(document: ProjectDocument): ProjectDocument {
+  const videoIndex = document.trackOrder.findIndex(
+    (id) => document.tracks[id]?.kind === "video",
+  );
+  const avatarIndex = document.trackOrder.findIndex(
+    (id) => document.tracks[id]?.kind === "avatar",
+  );
+  if (videoIndex < 0 || avatarIndex < 0 || videoIndex < avatarIndex) return document;
+
+  const trackOrder = [...document.trackOrder];
+  const [videoId] = trackOrder.splice(videoIndex, 1);
+  trackOrder.splice(avatarIndex, 0, videoId!);
+  return { ...document, trackOrder };
+}
 
 function createDefaultDocument(projectId: string, aspectRatio: Project["aspectRatio"]) {
   const tracks: Record<string, Track> = {};
@@ -260,7 +286,8 @@ export const projectRepository: ProjectRepository = {
 export const documentRepository: DocumentRepository = {
   async get(projectId) {
     const db = await getDb();
-    return (await db.get("documents", projectId)) ?? null;
+    const stored = await db.get("documents", projectId);
+    return stored ? normalizeLayerOrder(stored) : null;
   },
 
   async save(document, expectedRevision) {

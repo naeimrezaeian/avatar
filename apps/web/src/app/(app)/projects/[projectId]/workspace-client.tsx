@@ -14,6 +14,7 @@ import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-sess
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PreviewPlayer } from "@/components/preview/preview-player";
+import { ClipInspector } from "@/components/timeline/clip-inspector";
 import { Timeline } from "@/components/timeline/timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -353,6 +354,9 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       </div>
 
       <Timeline document={document} />
+
+      {/* Настройки выделенного клипа — сразу под шкалой, где его и выделили. */}
+      <ClipInspector document={document} />
     </div>
   );
 }

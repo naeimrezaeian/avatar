@@ -1,19 +1,22 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Copy,
   Eye,
   EyeOff,
+  Loader2,
+  Plus,
   Redo2,
   Trash2,
+  Type,
   Undo2,
   Volume2,
   VolumeX,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   clipEndSec,
   type Clip,
@@ -28,17 +31,29 @@ import {
   selectCanUndo,
   useEditorStore,
 } from "@/lib/editor/store";
-import { duplicateClips, removeClips } from "@/lib/editor/operations";
+import {
+  ADDABLE_TRACKS,
+  addMediaClip,
+  addTextClip,
+  addTrack,
+  duplicateClips,
+  removeClips,
+} from "@/lib/editor/operations";
+import { UploadValidationError, uploadFile, validateFile } from "@/lib/data/uploads";
 import { formatDuration } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ClipView } from "./clip-view";
 
 const TRACK_HEIGHT = 56;
-const HEADER_WIDTH = 148;
+const HEADER_WIDTH = 172;
 
 export function Timeline({ document }: { document: ProjectDocument }) {
   const laneRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  const [addError, setAddError] = useState<string | null>(null);
+  const [uploadingTrackId, setUploadingTrackId] = useState<string | null>(null);
 
   const pixelsPerSecond = useEditorStore((state) => state.pixelsPerSecond);
   const setPixelsPerSecond = useEditorStore((state) => state.setPixelsPerSecond);
@@ -76,6 +91,59 @@ export function Timeline({ document }: { document: ProjectDocument }) {
     if (selectedClipIds.length === 0) return;
     apply((draft) => removeClips(draft, selectedClipIds), { label: "Удаление клипов" });
     select([]);
+  };
+
+  /**
+   * Материал ложится на дорожку в один шаг: выбрал файл — увидел клип.
+   *
+   * Отдельной медиатеки для этого нет намеренно: она означала бы «загрузите
+   * сюда, потом найдите там, потом перетащите» — три шага вместо одного ради
+   * склада, который на этом этапе всё равно пуст.
+   */
+  const addMedia = async (track: Track, file: File) => {
+    setAddError(null);
+    setUploadingTrackId(track.id);
+    try {
+      validateFile(file, "media");
+      const asset = await uploadFile({ file, kind: "media", projectId: document.projectId });
+
+      let created: string | null = null;
+      apply(
+        (draft) => {
+          created = addMediaClip(draft, {
+            trackId: track.id,
+            kind: asset.kind === "audio" ? "audio" : asset.kind === "video" ? "video" : "image",
+            assetId: asset.id,
+            durationSec: asset.durationSec,
+            startSec: playheadSec,
+          });
+        },
+        { label: "Добавление материала" },
+      );
+
+      await queryClient.invalidateQueries({ queryKey: queryKeys.assets(document.projectId) });
+      if (created) select([created]);
+    } catch (error) {
+      setAddError(
+        error instanceof UploadValidationError || error instanceof Error
+          ? error.message
+          : "Не удалось добавить файл на дорожку",
+      );
+    } finally {
+      setUploadingTrackId(null);
+    }
+  };
+
+  const addText = (track: Track) => {
+    setAddError(null);
+    let created: string | null = null;
+    apply(
+      (draft) => {
+        created = addTextClip(draft, { trackId: track.id, startSec: playheadSec });
+      },
+      { label: "Добавление надписи" },
+    );
+    if (created) select([created]);
   };
 
   const duplicateSelected = () => {
@@ -137,6 +205,29 @@ export function Timeline({ document }: { document: ProjectDocument }) {
           <Trash2 className="size-4" />
         </Button>
 
+        <span className="bg-border mx-1 h-5 w-px" />
+
+        {/* Дорожки заводятся по требованию: проект начинается с четырёх, а
+            титры и звуки нужны не в каждом ролике. */}
+        {ADDABLE_TRACKS.filter(
+          (preset) => !document.trackOrder.some((id) => document.tracks[id]?.kind === preset.kind),
+        ).map((preset) => (
+          <Button
+            key={preset.kind}
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() =>
+              apply((draft) => void addTrack(draft, preset.kind), {
+                label: `Дорожка «${preset.name}»`,
+              })
+            }
+          >
+            <Plus className="size-3.5" />
+            {preset.name}
+          </Button>
+        ))}
+
         <span className="text-muted-foreground ml-2 text-xs tabular-nums">
           {formatDuration(playheadSec)} / {formatDuration(durationSec)}
         </span>
@@ -165,13 +256,25 @@ export function Timeline({ document }: { document: ProjectDocument }) {
         </div>
       </div>
 
+      {addError ? (
+        <p className="text-destructive border-border border-b px-3 py-2 text-xs">{addError}</p>
+      ) : null}
+
       <div className="flex">
         <div className="border-border shrink-0 border-r" style={{ width: HEADER_WIDTH }}>
           <div className="border-border h-7 border-b" />
           {document.trackOrder.map((trackId) => {
             const track = document.tracks[trackId];
             if (!track) return null;
-            return <TrackHeader key={trackId} track={track} />;
+            return (
+              <TrackHeader
+                key={trackId}
+                track={track}
+                busy={uploadingTrackId === trackId}
+                onAddMedia={(file) => void addMedia(track, file)}
+                onAddText={() => addText(track)}
+              />
+            );
           })}
         </div>
 
@@ -244,7 +347,30 @@ function clipLabel(clip: Clip, document: ProjectDocument): string {
   return clip.kind === "audio" ? "Аудио" : clip.kind === "video" ? "Видео" : "Изображение";
 }
 
-function TrackHeader({ track }: { track: Track }) {
+/**
+ * Что можно положить на дорожку руками.
+ *
+ * Дорожки аватара, озвучки и субтитров сюда не входят: их содержимое порождает
+ * генерация, и класть туда файл вручную значило бы разойтись с текстом сцены.
+ */
+const MANUAL_ACCEPT: Partial<Record<Track["kind"], string>> = {
+  video: "video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp",
+  image: "image/jpeg,image/png,image/webp",
+  music: "audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm",
+  sfx: "audio/mpeg,audio/wav,audio/mp4,audio/ogg,audio/webm",
+};
+
+function TrackHeader({
+  track,
+  busy,
+  onAddMedia,
+  onAddText,
+}: {
+  track: Track;
+  busy: boolean;
+  onAddMedia: (file: File) => void;
+  onAddText: () => void;
+}) {
   const apply = useEditorStore((state) => state.apply);
 
   const toggle = (field: "muted" | "hidden") => {
@@ -258,6 +384,7 @@ function TrackHeader({ track }: { track: Track }) {
   };
 
   const audio = ["voiceover", "music", "sfx"].includes(track.kind);
+  const accept = MANUAL_ACCEPT[track.kind];
 
   return (
     <div
@@ -265,6 +392,41 @@ function TrackHeader({ track }: { track: Track }) {
       style={{ height: TRACK_HEIGHT }}
     >
       <span className="min-w-0 flex-1 truncate text-xs font-medium">{track.name}</span>
+
+      {track.kind === "text" ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 shrink-0"
+          onClick={onAddText}
+          aria-label={`Добавить надпись на дорожку «${track.name}»`}
+          title="Добавить надпись"
+        >
+          <Type className="size-3.5" />
+        </Button>
+      ) : accept ? (
+        <label
+          title="Добавить файл"
+          aria-label={`Добавить файл на дорожку «${track.name}»`}
+          className="hover:bg-accent flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
+        >
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+          <input
+            type="file"
+            accept={accept}
+            className="sr-only"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              // Значение сбрасывается, иначе повторный выбор того же файла не
+              // вызовет события и кнопка будет выглядеть сломанной.
+              event.target.value = "";
+              if (file) onAddMedia(file);
+            }}
+          />
+        </label>
+      ) : null}
+
       <Button
         variant="ghost"
         size="icon"

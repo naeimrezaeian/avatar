@@ -1,10 +1,14 @@
 import {
   AudioClip,
   AvatarClip,
+  ImageClip,
   TRACK_ACCEPTS,
+  TextClip,
+  VideoClip,
   clipEndSec,
   isDurationLocked,
   type Clip,
+  type ClipKind,
   type ProjectDocument,
   type Scene,
   type TrackKind,
@@ -12,6 +16,20 @@ import {
 
 /** Минимальная видимая длительность клипа после обрезки. */
 export const MIN_CLIP_DURATION_SEC = 0.2;
+
+/**
+ * Сколько длится то, у чего своей длительности нет.
+ *
+ * У картинки и надписи её не существует в принципе — длительность задаёт монтаж,
+ * а не файл. Значения по умолчанию взяты такими, чтобы клип было видно на шкале
+ * сразу и не пришлось растягивать его от нуля.
+ */
+const DEFAULT_IMAGE_DURATION_SEC = 5;
+const DEFAULT_TEXT_DURATION_SEC = 3;
+
+function newClipId(): string {
+  return `clp_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
+}
 
 export function clipsOnTrack(
   document: ProjectDocument,
@@ -35,23 +53,37 @@ export function clampStart(
   desiredStart: number,
 ): number {
   const neighbours = clipsOnTrack(document, clip.trackId, clip.id);
-  let start = Math.max(0, desiredStart);
-  const end = start + clip.durationSec;
+  const duration = clip.durationSec;
+  const desired = Math.max(0, desiredStart);
+
+  // Свободные промежутки дорожки. Позиция выбирается по ним, а не отталкиванием
+  // от каждого соседа по очереди: длинный клип, не помещающийся между двумя
+  // соседями, при отталкивании оказывался бы поверх одного из них — то есть
+  // ровно там, где быть не должен.
+  const gaps: Array<{ from: number; to: number }> = [];
+  let cursor = 0;
 
   for (const other of neighbours) {
-    const otherEnd = clipEndSec(other);
-    if (start < otherEnd && other.startSec < end) {
-      // Прижимаем к той стороне соседа, которая ближе к желаемой позиции.
-      const distanceToLeft = Math.abs(desiredStart + clip.durationSec - other.startSec);
-      const distanceToRight = Math.abs(desiredStart - otherEnd);
-      start =
-        distanceToLeft < distanceToRight
-          ? Math.max(0, other.startSec - clip.durationSec)
-          : otherEnd;
+    if (other.startSec > cursor) gaps.push({ from: cursor, to: other.startSec });
+    cursor = Math.max(cursor, clipEndSec(other));
+  }
+  // Хвост дорожки бесконечен: туда клип помещается всегда.
+  gaps.push({ from: cursor, to: Number.POSITIVE_INFINITY });
+
+  let best = cursor;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const gap of gaps) {
+    if (gap.to - gap.from < duration) continue;
+    const start = Math.min(Math.max(desired, gap.from), gap.to - duration);
+    const distance = Math.abs(start - desired);
+    if (distance < bestDistance) {
+      best = start;
+      bestDistance = distance;
     }
   }
 
-  return Math.round(start * 1000) / 1000;
+  return Math.round(best * 1000) / 1000;
 }
 
 /**
@@ -162,6 +194,84 @@ export function duplicateClips(draft: ProjectDocument, clipIds: string[]): strin
   return created;
 }
 
+/**
+ * Куда встанет новый клип.
+ *
+ * От курсора воспроизведения — там смотрит пользователь, туда и кладём. Если
+ * место занято, clampStart прижмёт клип к свободной стороне соседа: наложение
+ * означало бы, что два источника претендуют на один отрезок времени, и при
+ * сборке один из них молча пропал бы.
+ */
+function placeAt(draft: ProjectDocument, clip: Clip, desiredStart: number): Clip {
+  clip.startSec = clampStart(draft, clip, Math.max(0, desiredStart));
+  return clip;
+}
+
+/**
+ * Добавление материала на дорожку: музыка, звук, фоновое изображение, видео.
+ *
+ * Проверяется, что дорожка принимает такой вид клипа: дорожка определяет, как
+ * содержимое будет собрано, и звук на дорожке субтитров означал бы не то, что
+ * задумано.
+ */
+export function addMediaClip(
+  draft: ProjectDocument,
+  input: {
+    trackId: string;
+    kind: Extract<ClipKind, "image" | "video" | "audio">;
+    assetId: string;
+    /** Из файла — для аудио и видео; у картинки её нет. */
+    durationSec: number | null;
+    startSec: number;
+  },
+): string | null {
+  const track = draft.tracks[input.trackId];
+  if (!track || !TRACK_ACCEPTS[track.kind].includes(input.kind)) return null;
+
+  const base = {
+    id: newClipId(),
+    trackId: input.trackId,
+    startSec: 0,
+    durationSec:
+      input.durationSec && input.durationSec > 0
+        ? input.durationSec
+        : DEFAULT_IMAGE_DURATION_SEC,
+    assetId: input.assetId,
+  };
+
+  const clip =
+    input.kind === "audio"
+      ? AudioClip.parse({ ...base, kind: "audio" })
+      : input.kind === "video"
+        ? VideoClip.parse({ ...base, kind: "video" })
+        : ImageClip.parse({ ...base, kind: "image", fitMode: "cover" });
+
+  const placed = placeAt(draft, clip, input.startSec);
+  draft.clips[placed.id] = placed;
+  return placed.id;
+}
+
+export function addTextClip(
+  draft: ProjectDocument,
+  input: { trackId: string; startSec: number; text?: string },
+): string | null {
+  const track = draft.tracks[input.trackId];
+  if (!track || !TRACK_ACCEPTS[track.kind].includes("text")) return null;
+
+  const clip = TextClip.parse({
+    id: newClipId(),
+    trackId: input.trackId,
+    kind: "text",
+    startSec: 0,
+    durationSec: DEFAULT_TEXT_DURATION_SEC,
+    text: input.text ?? "Новая надпись",
+  });
+
+  const placed = placeAt(draft, clip, input.startSec);
+  draft.clips[placed.id] = placed;
+  return placed.id;
+}
+
 export function setClipVolume(draft: ProjectDocument, clipId: string, volumePct: number): void {
   const clip = draft.clips[clipId];
   if (!clip || !("audio" in clip)) return;
@@ -170,6 +280,40 @@ export function setClipVolume(draft: ProjectDocument, clipId: string, volumePct:
 
 function findTrackByKind(draft: ProjectDocument, kind: TrackKind): string | null {
   return draft.trackOrder.find((id) => draft.tracks[id]?.kind === kind) ?? null;
+}
+
+/**
+ * Дорожки, которые пользователь заводит сам.
+ *
+ * Проект создаётся с четырьмя: аватар, озвучка, фон, музыка. Остальные
+ * появляются по требованию — восемь пустых дорожек в новом проекте это шум, а
+ * не удобство, но и совсем без них титры оказались бы недостижимы.
+ */
+export const ADDABLE_TRACKS: Array<{ kind: TrackKind; name: string }> = [
+  { kind: "text", name: "Текст" },
+  { kind: "image", name: "Изображения" },
+  { kind: "sfx", name: "Звуки" },
+];
+
+export function addTrack(draft: ProjectDocument, kind: TrackKind): string | null {
+  const existing = findTrackByKind(draft, kind);
+  if (existing) return existing;
+
+  const preset = ADDABLE_TRACKS.find((item) => item.kind === kind);
+  if (!preset) return null;
+
+  const track = {
+    id: `trk_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`,
+    kind,
+    name: preset.name,
+    muted: false,
+    hidden: false,
+    locked: false,
+  };
+
+  draft.tracks[track.id] = track;
+  draft.trackOrder.push(track.id);
+  return track.id;
 }
 
 /**

@@ -45,7 +45,19 @@ export const UPLOAD_LIMITS = {
   },
   media: {
     maxBytes: 512 * 1024 * 1024,
-    mimeTypes: ['video/mp4', 'video/quicktime', 'image/jpeg', 'image/png', 'audio/mpeg', 'audio/wav'],
+    mimeTypes: [
+      'video/mp4',
+      'video/quicktime',
+      'video/webm',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp4',
+      'audio/ogg',
+      'audio/webm',
+    ],
   },
 } as const;
 

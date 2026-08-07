@@ -1,6 +1,8 @@
 import { AudioClip, AvatarClip, ProjectDocument, Scene, Track } from "@avatar/contracts";
 import { useEditorStore } from "../src/lib/editor/store";
 import {
+  addMediaClip,
+  addTextClip,
   clampStart,
   duplicateClips,
   moveClip,
@@ -20,6 +22,8 @@ const tracks = [
   Track.parse({ id: "t_avatar", kind: "avatar", name: "Аватар" }),
   Track.parse({ id: "t_voice", kind: "voiceover", name: "Озвучивание" }),
   Track.parse({ id: "t_music", kind: "music", name: "Музыка" }),
+  Track.parse({ id: "t_image", kind: "image", name: "Изображения" }),
+  Track.parse({ id: "t_text", kind: "text", name: "Текст" }),
 ];
 
 function baseDocument(): ProjectDocument {
@@ -185,6 +189,68 @@ const avatarAfter = Object.values(store.getState().document!.clips).find(
 )!;
 check("перегенерация не переносит клип", avatarAfter.startSec === startBefore);
 check("перегенерация обновила длительность", avatarAfter.durationSec === 11);
+
+// --- Материал на дорожках ---
+store.getState().load(baseDocument());
+
+let imageId: string | null = null;
+store.getState().apply((draft) => {
+  imageId = addMediaClip(draft, {
+    trackId: "t_image",
+    kind: "image",
+    assetId: "ast_bg",
+    durationSec: null,
+    startSec: 3,
+  });
+}, { label: "Фон" });
+const imageClip = store.getState().document!.clips[imageId!];
+check("изображение добавлено на дорожку", imageClip?.kind === "image");
+check("картинке дана длительность по умолчанию", imageClip!.durationSec === 5);
+check("картинка встала под курсором", imageClip!.startSec === 3);
+check(
+  "фон по умолчанию заполняет кадр",
+  imageClip!.kind === "image" && imageClip.fitMode === "cover",
+);
+
+let musicId: string | null = null;
+store.getState().apply((draft) => {
+  musicId = addMediaClip(draft, {
+    trackId: "t_music",
+    kind: "audio",
+    assetId: "ast_music",
+    durationSec: 30,
+    startSec: 5,
+  });
+}, { label: "Музыка" });
+const musicClip = store.getState().document!.clips[musicId!]!;
+check("длительность аудио взята из файла", musicClip.durationSec === 30);
+check(
+  "клип не наехал на соседа по дорожке",
+  musicClip.startSec >= 10,
+  `${musicClip.startSec} с`,
+);
+
+store.getState().apply((draft) => {
+  const rejected = addMediaClip(draft, {
+    trackId: "t_music",
+    kind: "image",
+    assetId: "ast_bg",
+    durationSec: null,
+    startSec: 0,
+  });
+  check("картинку не кладут на музыкальную дорожку", rejected === null);
+}, { label: "Неверная дорожка" });
+
+let textId: string | null = null;
+store.getState().apply((draft) => {
+  textId = addTextClip(draft, { trackId: "t_text", startSec: 2 });
+}, { label: "Надпись" });
+const textClip = store.getState().document!.clips[textId!]!;
+check("надпись добавлена", textClip.kind === "text");
+check("у надписи есть длительность", textClip.durationSec === 3);
+
+store.getState().undo();
+check("добавление отменяется", store.getState().document!.clips[textId!] === undefined);
 
 console.log(failures === 0 ? "\nВСЕ ПРОВЕРКИ ПРОШЛИ" : `\nПРОВАЛЕНО: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

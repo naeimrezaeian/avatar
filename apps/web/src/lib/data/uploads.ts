@@ -67,7 +67,17 @@ export function validateFile(file: File, kind: UploadKind): void {
 }
 
 async function probeImage(file: File): Promise<{ width: number; height: number }> {
-  const bitmap = await createImageBitmap(file);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    // Расширение и тип могут быть верными, а содержимое — битым. Браузер
+    // сообщает об этом по-английски и без подсказки, что делать.
+    throw new UploadValidationError(
+      "Не удалось прочитать изображение: файл повреждён или сохранён в формате, который браузер не открывает",
+    );
+  }
+
   try {
     return { width: bitmap.width, height: bitmap.height };
   } finally {

@@ -178,13 +178,18 @@ function drawFrame(
     if (clip.kind === "audio" || clip.kind === "subtitle") continue;
 
     if (clip.kind === "text") {
-      drawText(context, width, height, clip.text, clip.style.fontSizeRatio);
+      drawText(context, width, height, clip);
       continue;
     }
 
     const image = media.images.get(clip.id);
     if (!image) {
       drawPlaceholder(context, width, height, clip);
+      continue;
+    }
+
+    if (clip.kind === "image") {
+      drawFitted(context, width, height, image, clip.fitMode, clip.transform.opacity);
       continue;
     }
 
@@ -197,6 +202,53 @@ function drawFrame(
       clip.kind === "avatar" ? clip.style : null,
     );
   }
+}
+
+/**
+ * Изображение на дорожке фона.
+ *
+ * Ему нужны правила вписывания, а не якорь и масштаб: подложку либо растягивают
+ * на весь кадр, либо показывают целиком. Клип аватара рисуется иначе — там
+ * важно положение фигуры, а не заполнение кадра.
+ */
+function drawFitted(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  image: HTMLImageElement,
+  fitMode: "contain" | "cover" | "fill",
+  opacity: number,
+): void {
+  const ratio = image.width / image.height;
+  const frameRatio = width / height;
+
+  let drawWidth = width;
+  let drawHeight = height;
+
+  if (fitMode === "contain") {
+    if (ratio > frameRatio) drawHeight = width / ratio;
+    else drawWidth = height * ratio;
+  } else if (fitMode === "cover") {
+    if (ratio > frameRatio) drawWidth = height * ratio;
+    else drawHeight = width / ratio;
+  }
+
+  context.globalAlpha = opacity;
+  context.save();
+  // «Заполнить» выходит за кадр — лишнее обрезается рамкой, а не рисуется
+  // поверх соседних областей холста.
+  context.beginPath();
+  context.rect(0, 0, width, height);
+  context.clip();
+  context.drawImage(
+    image,
+    (width - drawWidth) / 2,
+    (height - drawHeight) / 2,
+    drawWidth,
+    drawHeight,
+  );
+  context.restore();
+  context.globalAlpha = 1;
 }
 
 function drawImage(
@@ -255,21 +307,56 @@ function drawImage(
   context.globalAlpha = 1;
 }
 
+/** Отступ подложки надписи от букв, долей кегля. */
+const TEXT_PADDING_RATIO = 0.3;
+
 function drawText(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
-  text: string,
-  sizeRatio: number,
+  clip: Extract<Clip, { kind: "text" }>,
 ): void {
-  const size = Math.round(height * sizeRatio);
-  context.font = `600 ${size}px Inter, sans-serif`;
-  context.fillStyle = "#ffffff";
-  context.textAlign = "center";
-  context.shadowColor = "rgba(0,0,0,0.6)";
-  context.shadowBlur = size / 4;
-  context.fillText(text, width / 2, height - size);
+  const text = clip.text.trim();
+  if (text.length === 0) return;
+
+  const { style, transform } = clip;
+  const size = Math.round(height * style.fontSizeRatio);
+
+  context.font = `${style.fontWeight} ${size}px Inter, sans-serif`;
+  context.textAlign = style.align;
+  context.textBaseline = "middle";
+
+  // Ноль по вертикали — центр кадра: смещение задаётся долей высоты и остаётся
+  // верным в любом соотношении сторон.
+  const y = height / 2 + transform.offsetYRatio * height;
+  const x =
+    style.align === "left"
+      ? width * 0.06
+      : style.align === "right"
+        ? width * 0.94
+        : width / 2;
+
+  if (style.backgroundColor !== null) {
+    const metrics = context.measureText(text);
+    const padding = size * TEXT_PADDING_RATIO;
+    const boxWidth = metrics.width + padding * 2;
+    const boxX =
+      style.align === "left" ? x - padding : style.align === "right" ? x - boxWidth + padding : x - boxWidth / 2;
+
+    context.fillStyle = style.backgroundColor;
+    context.fillRect(boxX, y - size / 2 - padding / 2, boxWidth, size + padding);
+  }
+
+  if (style.shadow) {
+    context.shadowColor = "rgba(0,0,0,0.6)";
+    context.shadowBlur = size / 4;
+  }
+
+  context.fillStyle = style.color;
+  context.fillText(text, x, y);
+
   context.shadowBlur = 0;
+  context.textBaseline = "alphabetic";
 }
 
 /**
@@ -305,6 +392,26 @@ function drawPlaceholder(
  */
 const MAX_DRIFT_SEC = 0.25;
 
+/**
+ * Громкость клипа с учётом нарастания и затухания.
+ *
+ * Считается на каждом кадре, а не задаётся один раз: `volume` у элемента —
+ * одно число, кривой громкости у него нет, и плавность получается только тем,
+ * что число пересчитывается вместе с часами.
+ */
+function clipGain(clip: Extract<Clip, { audio: unknown }>, timeSec: number): number {
+  const audio = clip.audio as { volumePct: number; fadeInSec: number; fadeOutSec: number };
+  const base = Math.min(1, audio.volumePct / 100);
+
+  const local = timeSec - clip.startSec;
+  const remaining = clipEndSec(clip) - timeSec;
+
+  const fadeIn = audio.fadeInSec > 0 ? Math.min(1, local / audio.fadeInSec) : 1;
+  const fadeOut = audio.fadeOutSec > 0 ? Math.min(1, remaining / audio.fadeOutSec) : 1;
+
+  return Math.max(0, base * Math.min(fadeIn, fadeOut));
+}
+
 function syncAudio(
   document: ProjectDocument,
   media: PreviewMedia,
@@ -329,7 +436,7 @@ function syncAudio(
       element.currentTime = target;
     }
 
-    element.volume = "audio" in clip ? Math.min(1, clip.audio.volumePct / 100) : 1;
+    element.volume = "audio" in clip ? clipGain(clip, timeSec) : 1;
     if (element.paused) void element.play().catch(() => undefined);
   });
 }
