@@ -10,6 +10,7 @@ import { PreparationStatusBadge } from "@/components/preparation-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { CreateAvatarDialog } from "./create-avatar-dialog";
 
 export function AvatarsClient() {
@@ -34,13 +35,13 @@ export function AvatarsClient() {
       </div>
 
       {avatars.isPending ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2].map((key) => (
-            <Skeleton key={key} className="h-72 rounded-2xl" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((key) => (
+            <Skeleton key={key} className="h-56 rounded-2xl" />
           ))}
         </div>
       ) : avatars.data && avatars.data.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {avatars.data.map((avatar) => (
             <AvatarCard
               key={avatar.id}
@@ -78,66 +79,64 @@ function AvatarCard({ avatar, voice }: { avatar: Avatar; voice: Voice | null }) 
   const usable = isAvatarUsable(avatar, voice?.status ?? null);
 
   return (
-    <Card className="overflow-hidden pt-0 shadow-soft">
-      <div className="bg-muted relative aspect-3/4">
+    <Card className="overflow-hidden pt-0 shadow-soft transition-shadow hover:shadow-soft-lg">
+      {/* Квадратный кадр вместо вытянутого: лицо в нём видно не хуже, а
+          карточка занимает заметно меньше места в сетке. */}
+      <div className="bg-muted relative aspect-square">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- локальный object URL, оптимизатор next/image к нему не применим
           <img src={imageUrl} alt="" className="size-full object-cover" />
         ) : (
           <div className="text-muted-foreground flex size-full items-center justify-center">
-            <UserRound className="size-10" />
+            <UserRound className="size-8" />
           </div>
         )}
-        <div className="absolute top-2 left-2">
+        <div className="absolute top-1.5 right-1.5 left-1.5">
           <PreparationStatusBadge
             status={avatar.status}
             message={avatar.statusMessage}
-            className="bg-background/90 backdrop-blur-sm"
+            className="bg-card/90 backdrop-blur-sm"
           />
         </div>
       </div>
 
-      <CardContent className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
+      <CardContent className="space-y-1 px-3 pb-3">
+        <div className="flex items-start justify-between gap-1">
           <div className="min-w-0">
-            <p className="truncate font-medium">{avatar.name}</p>
+            <p className="truncate text-sm font-medium">{avatar.name}</p>
             <p className="text-muted-foreground truncate text-xs">
-              {voice ? `Голос: ${voice.name}` : "Голос не выбран"}
+              {voice ? voice.name : "Голос не выбран"}
             </p>
           </div>
-          <div className="flex shrink-0">
+          <div className="-mr-1 flex shrink-0">
             <Button
               variant="ghost"
-              size="icon"
-              className="size-8"
+              size="icon-xs"
               aria-label="Архивировать"
               onClick={() => archive.mutate()}
             >
-              <Archive className="size-4" />
+              <Archive className="size-3.5" />
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className="size-8"
+              size="icon-xs"
               aria-label="Удалить аватар"
               onClick={() => remove.mutate()}
             >
-              <Trash2 className="size-4" />
+              <Trash2 className="size-3.5" />
             </Button>
           </div>
         </div>
 
-        {!usable ? (
-          <p className="text-muted-foreground text-xs">
-            {avatar.status !== "ready"
-              ? "Аватар ещё готовится"
+        <p className={cn("truncate text-xs", usable ? "text-success" : "text-muted-foreground")}>
+          {usable
+            ? "Готов к генерации"
+            : avatar.status !== "ready"
+              ? "Аватар готовится"
               : voice?.status !== "ready"
-                ? "Голос ещё не готов"
-                : "Не хватает данных для генерации"}
-          </p>
-        ) : (
-          <p className="text-success text-xs">Готов к генерации видео</p>
-        )}
+                ? "Голос не готов"
+                : "Не хватает данных"}
+        </p>
       </CardContent>
     </Card>
   );

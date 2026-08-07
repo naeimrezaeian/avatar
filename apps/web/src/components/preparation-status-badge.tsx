@@ -44,14 +44,17 @@ export function PreparationStatusBadge({
 
   return (
     <span
+      // Подпись в одну строку: в компактной карточке длинное сообщение о ходе
+      // подготовки переносилось и раздувало плашку вдвое.
+      title={message ?? meta.label}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+        "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
         meta.className,
         className,
       )}
     >
-      <Icon className={cn("size-3.5", meta.spin && "animate-spin")} />
-      {message ?? meta.label}
+      <Icon className={cn("size-3.5 shrink-0", meta.spin && "animate-spin")} />
+      <span className="truncate">{message ?? meta.label}</span>
     </span>
   );
 }

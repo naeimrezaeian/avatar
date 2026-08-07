@@ -186,6 +186,20 @@
     color-scheme: light;
   }
 
+  /* Родные поля — флажки, переключатели, ползунки, выбор цвета и файла — не
+     проходят через компоненты оформления и получают браузерное кольцо фокуса,
+     чужое по цвету и толщине. Приводим их к тому же виду, что у остальных
+     элементов: тонкая обводка основным акцентом с отступом. */
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible,
+  input[type="range"]:focus-visible,
+  input[type="color"]:focus-visible,
+  input[type="file"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   /* Плавные анимации, но не для тех, кому они мешают. */
   @media (prefers-reduced-motion: reduce) {
     *,
