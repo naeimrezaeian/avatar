@@ -10,12 +10,12 @@
     "typecheck": "tsc --noEmit",
     "check:data": "tsx scripts/engine-check.ts",
     "check:editor": "tsx scripts/editor-check.ts",
-    "check": "npm run check:data && npm run check:editor && npm run check:auth && npm run check:admin && npm run check:system",
-    "check:auth": "tsx scripts/auth-check.ts",
+    "check": "npm run check:data && npm run check:editor && npm run check:admin && npm run check:system",
     "check:admin": "tsx scripts/admin-check.ts",
     "check:system": "tsx scripts/system-check.ts",
     "check:browser": "node scripts/diag.mjs",
-    "check:theme": "node scripts/theme-audit.mjs"
+    "check:theme": "node scripts/theme-audit.mjs",
+    "check:api": "node scripts/api-check.mjs"
   },
   "dependencies": {
     "@avatar/contracts": "*",
@@ -29,6 +29,7 @@
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
     "shadcn": "^4.16.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
@@ -38,7 +39,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

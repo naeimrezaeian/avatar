@@ -14,7 +14,6 @@ Object.defineProperty(globalThis, "localStorage", {
 async function main() {
   const { dataClient } = await import("../src/lib/data/index");
   const { seedIfEmpty } = await import("../src/lib/data/seed");
-  const { localAuthService } = await import("../src/lib/auth/local-auth");
   const { getDb } = await import("../src/lib/data/db");
 
   let failures = 0;
@@ -26,27 +25,9 @@ async function main() {
   await seedIfEmpty();
   const db = await getDb();
 
-  // --- Сводка ---
-  const stats = await dataClient.admin.stats();
-  check("в сводке есть посеянный пользователь", stats.usersTotal === 1, `${stats.usersTotal}`);
-  check("посчитаны аватары", stats.avatarsTotal === 2, `${stats.avatarsTotal}`);
-  check("готовым считается только один аватар", stats.avatarsReady === 1);
-  check("посчитан проект", stats.projectsTotal === 1);
-  check("начисления учтены", stats.grantedSeconds === 2700, `${stats.grantedSeconds}`);
-
-  // --- Список пользователей ---
-  const rows = await dataClient.admin.listUsers();
-  check("строка пользователя собрана", rows.length === 1);
-  check("к пользователю подтянут счёт", rows[0]?.account?.balanceSeconds === 2700);
-  check("посчитаны проекты пользователя", rows[0]?.projectCount === 1);
-  check("посчитаны аватары пользователя", rows[0]?.avatarCount === 2);
-
-  const userId = rows[0]!.user.id;
-
-  // --- Роль ---
-  const asManager = await dataClient.admin.setRole(userId, "manager");
-  check("роль изменена", asManager.role === "manager");
-  await dataClient.admin.setRole(userId, "admin");
+  // Учётные записи и права проверяются по HTTP в scripts/api-check.mjs: ими
+  // владеет сервер, и вызвать сводку отсюда нельзя — она за ними ходит.
+  const userId = "usr_demo";
 
   // --- Кредиты ---
   const granted = await dataClient.admin.adjustCredits({
@@ -104,40 +85,6 @@ async function main() {
     zeroRejected = true;
   }
   check("нулевая корректировка отклонена", zeroRejected);
-
-  // --- Блокировка завершает сессии ---
-  await db.put("sessions", {
-    id: "ses_admin_check",
-    userId,
-    deviceLabel: "Тест",
-    browser: null,
-    os: null,
-    ipAddress: null,
-    location: null,
-    isCurrent: false,
-    createdAt: new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-  });
-  check("сессия создана до блокировки", (await db.getAllFromIndex("sessions", "by-user", userId)).length === 1);
-
-  await dataClient.admin.setStatus(userId, "blocked");
-  check(
-    "блокировка завершила сессии",
-    (await db.getAllFromIndex("sessions", "by-user", userId)).length === 0,
-  );
-
-  const blockedStats = await dataClient.admin.stats();
-  check("заблокированный отражён в сводке", blockedStats.usersBlocked === 1);
-  check(
-    "заблокированный не пускается в систему",
-    await localAuthService
-      .login({ email: "naeimwtg@gmail.com", password: "avatar2026demo" })
-      .then(() => false)
-      .catch(() => true),
-  );
-
-  await dataClient.admin.setStatus(userId, "active");
-  check("разблокировка вернула статус", (await db.get("users", userId))?.status === "active");
 
   // --- Очередь ---
   const allJobs = await dataClient.admin.listJobs();

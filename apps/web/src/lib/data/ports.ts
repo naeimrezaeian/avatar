@@ -121,6 +121,11 @@ export interface ConsentRepository {
 
 export interface CreditRepository {
   getAccount(userId: string): Promise<CreditAccount>;
+  /**
+   * Счёт нового пользователя со стартовым пакетом. Повторный вызов ничего не
+   * меняет: начисление привязано к появлению счёта, а не к числу вызовов.
+   */
+  ensureAccount(userId: string, welcomeSeconds: number): Promise<CreditAccount>;
   listTransactions(userId: string): Promise<CreditTransaction[]>;
   estimate(input: { durationSec: number; resolution: Resolution }): Promise<CostEstimate>;
 }

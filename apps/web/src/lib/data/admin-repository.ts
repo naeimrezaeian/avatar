@@ -5,15 +5,44 @@ import type { AdminRepository, AdminStats, AdminUserRow } from "./ports";
 /**
  * Сводки для панели администратора.
  *
- * Всё считается перебором записей — на локальном хранилище это допустимо, но
- * на сервере такие цифры обязаны приходить из агрегатов, а не из выборки всех
- * пользователей в память.
+ * Учётные записи спрашиваются у сервера — он ими владеет, и решение о роли и
+ * блокировке принимает тоже он: скрытая кнопка не помешала бы вызвать маршрут
+ * напрямую. Остальные цифры пока считаются перебором записей в браузерном
+ * хранилище; когда данные переедут следом, они обязаны приходить агрегатами, а
+ * не выборкой всего в память.
  */
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/admin${path}`, {
+    ...init,
+    headers: init?.body ? { "content-type": "application/json" } : undefined,
+    credentials: "same-origin",
+  });
+
+  if (response.status === 204) return undefined as T;
+
+  const payload = (await response.json().catch(() => null)) as
+    | { error?: { message?: string } }
+    | T
+    | null;
+
+  if (!response.ok) {
+    const message = (payload as { error?: { message?: string } })?.error?.message;
+    throw new Error(message ?? "Не удалось выполнить запрос");
+  }
+  return payload as T;
+}
+
+async function listServerUsers(): Promise<User[]> {
+  const data = await api<{ users: unknown[] }>("/users");
+  return data.users.map((item) => User.parse(item));
+}
+
 export const adminRepository: AdminRepository = {
   async stats(): Promise<AdminStats> {
     const db = await getDb();
     const [users, avatars, projects, renders, jobs, transactions] = await Promise.all([
-      db.getAll("users"),
+      listServerUsers(),
       db.getAll("avatars"),
       db.getAll("projects"),
       db.getAll("renderVersions"),
@@ -52,7 +81,7 @@ export const adminRepository: AdminRepository = {
   async listUsers(): Promise<AdminUserRow[]> {
     const db = await getDb();
     const [users, accounts, projects, avatars, transactions] = await Promise.all([
-      db.getAll("users"),
+      listServerUsers(),
       db.getAll("creditAccounts"),
       db.getAll("projects"),
       db.getAll("avatars"),
@@ -77,31 +106,21 @@ export const adminRepository: AdminRepository = {
   },
 
   async setRole(userId, role) {
-    const db = await getDb();
-    const user = await db.get("users", userId);
-    if (!user) throw new Error(`Пользователь ${userId} не найден`);
-
-    const next = User.parse({ ...user, role, updatedAt: nowIso() });
-    await db.put("users", next);
-    return next;
+    const data = await api<{ user: unknown }>(`/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+    return User.parse(data.user);
   },
 
   async setStatus(userId, status) {
-    const db = await getDb();
-    const user = await db.get("users", userId);
-    if (!user) throw new Error(`Пользователь ${userId} не найден`);
-
-    const next = User.parse({ ...user, status, updatedAt: nowIso() });
-    await db.put("users", next);
-
-    // Блокировка завершает сессии: иначе заблокированный продолжит работать до
-    // истечения своей сессии.
-    if (status === "blocked") {
-      const sessions = await db.getAllFromIndex("sessions", "by-user", userId);
-      await Promise.all(sessions.map((session) => db.delete("sessions", session.id)));
-    }
-
-    return next;
+    // Сессии заблокированного завершает сервер: они там и живут, а без этого
+    // заблокированный продолжил бы работать до истечения своей сессии.
+    const data = await api<{ user: unknown }>(`/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    return User.parse(data.user);
   },
 
   async adjustCredits({ userId, deltaSeconds, note, actorUserId }) {

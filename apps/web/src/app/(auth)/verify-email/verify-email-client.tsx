@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import { AuthError } from "@/lib/auth/ports";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +24,7 @@ export function VerifyEmailClient({ token }: { token: string | null }) {
     if (!token || startedRef.current) return;
     startedRef.current = true;
 
-    localAuthService
+    authService
       .verifyEmail(token)
       .then(() => setState({ kind: "ok" }))
       .catch((error: unknown) => {

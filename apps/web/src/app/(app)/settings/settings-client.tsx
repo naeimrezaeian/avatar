@@ -12,7 +12,7 @@ import {
   type Session,
   type UserRole,
 } from "@avatar/contracts";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import { AuthError } from "@/lib/auth/ports";
 import { useSession } from "@/lib/auth/session-context";
 import { dataClient, queryKeys } from "@/lib/data";
@@ -41,8 +41,9 @@ export function SettingsClient() {
 
       <Alert>
         <AlertDescription className="text-xs">
-          Проверка пароля и решение о доступе сейчас выполняются в браузере — это работающие
-          экраны и потоки, но не защита. Настоящая проверка появится вместе с серверной частью.
+          Пароль проверяет сервер, идентификатор сессии лежит в куке, недоступной скриптам.
+          Письма пока не отправляются: ссылку для подтверждения адреса и сброса пароля
+          интерфейс показывает прямо на экране.
         </AlertDescription>
       </Alert>
     </div>
@@ -72,7 +73,7 @@ function ProfileCard() {
 
   const save = useMutation({
     mutationFn: () =>
-      localAuthService.updateProfile({
+      authService.updateProfile({
         firstName: firstName ?? user!.firstName,
         lastName: lastName ?? user!.lastName,
       }),
@@ -210,7 +211,7 @@ function ChangePasswordCard() {
   const [done, setDone] = useState(false);
 
   const change = useMutation({
-    mutationFn: () => localAuthService.changePassword({ currentPassword, newPassword }),
+    mutationFn: () => authService.changePassword({ currentPassword, newPassword }),
     onSuccess: () => {
       setDone(true);
       setCurrentPassword("");
@@ -295,17 +296,17 @@ function SessionsCard() {
   const queryClient = useQueryClient();
   const sessions = useQuery({
     queryKey: ["sessions"],
-    queryFn: () => localAuthService.listSessions(),
+    queryFn: () => authService.listSessions(),
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["sessions"] });
 
   const revoke = useMutation({
-    mutationFn: (sessionId: string) => localAuthService.revokeSession(sessionId),
+    mutationFn: (sessionId: string) => authService.revokeSession(sessionId),
     onSuccess: invalidate,
   });
   const revokeOthers = useMutation({
-    mutationFn: () => localAuthService.revokeOtherSessions(),
+    mutationFn: () => authService.revokeOtherSessions(),
     onSuccess: invalidate,
   });
 

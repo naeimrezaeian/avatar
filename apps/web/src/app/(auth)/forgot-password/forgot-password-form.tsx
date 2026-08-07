@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import type { PendingEmail } from "@/lib/auth/ports";
 import { PendingEmailNotice } from "@/components/auth/pending-email-notice";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,7 +19,7 @@ export function ForgotPasswordForm() {
   const [pending, setPending] = useState<PendingEmail | null>(null);
 
   const request = useMutation({
-    mutationFn: () => localAuthService.requestPasswordReset(email),
+    mutationFn: () => authService.requestPasswordReset(email),
     onSuccess: (result) => {
       setPending(result);
       setSubmitted(true);

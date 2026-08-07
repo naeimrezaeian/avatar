@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@avatar/contracts";
-import { localAuthService } from "./local-auth";
+import { AUTH_BROADCAST_KEY } from "./http-auth";
+import { authService } from "./service";
 
 type SessionState = {
   user: User | null;
@@ -27,7 +28,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const query = useQuery({
     queryKey: SESSION_QUERY_KEY,
-    queryFn: () => localAuthService.current(),
+    queryFn: () => authService.current(),
     staleTime: 30_000,
   });
 
@@ -36,15 +37,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const logout = useCallback(async () => {
-    await localAuthService.logout();
+    await authService.logout();
     await refresh();
   }, [refresh]);
 
   // Вход и выход в соседней вкладке должны отражаться здесь: иначе одна вкладка
-  // продолжает показывать кабинет уже вышедшего пользователя.
+  // продолжает показывать кабинет уже вышедшего пользователя. Саму куку сессии
+  // скрипты не видят, поэтому вкладки договариваются отдельной отметкой.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === "avatar-studio.session") void refresh();
+      if (event.key === AUTH_BROADCAST_KEY) void refresh();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Check, Loader2, X } from "lucide-react";
 import { PASSWORD_MIN_LENGTH, Password } from "@avatar/contracts";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import { AuthError } from "@/lib/auth/ports";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ export function ResetPasswordForm({ token }: { token: string | null }) {
   const [done, setDone] = useState(false);
 
   const reset = useMutation({
-    mutationFn: () => localAuthService.resetPassword(token!, password),
+    mutationFn: () => authService.resetPassword(token!, password),
     onSuccess: () => setDone(true),
   });
 

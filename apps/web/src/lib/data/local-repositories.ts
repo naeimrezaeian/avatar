@@ -3,6 +3,7 @@ import {
   Avatar,
   ConsentRecord,
   CreditAccount,
+  CreditTransaction,
   Project,
   ProjectDocument,
   RenderVersion,
@@ -369,6 +370,42 @@ export const creditRepository: CreditRepository = {
     });
     await db.put("creditAccounts", fresh);
     return fresh;
+  },
+
+  async ensureAccount(userId, welcomeSeconds) {
+    const db = await getDb();
+    const existing = await db.get("creditAccounts", userId);
+    if (existing) return existing;
+
+    const timestamp = nowIso();
+    const account = CreditAccount.parse({
+      userId,
+      balanceSeconds: welcomeSeconds,
+      reservedSeconds: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    // Счёт и запись о начислении создаются одной транзакцией: остаток без
+    // объяснения, откуда он взялся, невозможно свести с историей операций.
+    const tx = db.transaction(["creditAccounts", "creditTransactions"], "readwrite");
+    await Promise.all([
+      tx.objectStore("creditAccounts").put(account),
+      tx.objectStore("creditTransactions").put(
+        CreditTransaction.parse({
+          id: newId("ctx"),
+          userId,
+          kind: "grant",
+          deltaSeconds: welcomeSeconds,
+          balanceAfterSeconds: welcomeSeconds,
+          note: "Стартовый пакет при регистрации",
+          createdAt: timestamp,
+        }),
+      ),
+      tx.done,
+    ]);
+
+    return account;
   },
 
   async listTransactions(userId) {

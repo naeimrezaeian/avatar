@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { Check, Loader2, X } from "lucide-react";
 import { PASSWORD_MIN_LENGTH, RegisterInput } from "@avatar/contracts";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import { AuthError, type PendingEmail } from "@/lib/auth/ports";
+import { dataClient } from "@/lib/data";
 import { PendingEmailNotice } from "@/components/auth/pending-email-notice";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+/** Стартовый пакет новой учётной записи: пять минут, чтобы попробовать платформу. */
+const WELCOME_SECONDS = 300;
 
 export function RegisterForm() {
   const [firstName, setFirstName] = useState("");
@@ -23,7 +27,15 @@ export function RegisterForm() {
   const [pending, setPending] = useState<PendingEmail | null>(null);
 
   const register = useMutation({
-    mutationFn: () => localAuthService.register({ firstName, lastName, email, password }),
+    mutationFn: async () => {
+      const result = await authService.register({ firstName, lastName, email, password });
+      // Счёт кредитов пока живёт в браузерном хранилище, а учётная запись — уже
+      // на сервере. Пока данные не переехали следом, стартовый пакет заводится
+      // здесь: без счёта новый пользователь не смог бы запустить ни одной
+      // генерации.
+      await dataClient.credits.ensureAccount(result.user.id, WELCOME_SECONDS);
+      return result;
+    },
     onSuccess: (result) => setPending(result.email),
   });
 

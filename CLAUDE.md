@@ -15,14 +15,24 @@ npm run typecheck  # tsc --noEmit across workspaces
 
 `next lint` was removed in Next 16 — `next build` no longer lints, so run `lint` separately.
 
-There is no test runner yet. Playwright is planned for the timeline's drag/trim/undo interactions, which are the parts that break silently.
+Checks live in `apps/web/scripts` and are assertion scripts, not a test runner:
+
+```bash
+npm run check       # data + editor + admin + system, in Node against fake-indexeddb
+npm run check:api   # HTTP checks of auth and permissions — needs a running server
+npm run check:theme # every page screenshot-audited for stray colours (Playwright)
+npm run check:browser
+```
 
 ## Layout
 
 - `apps/web` — Next.js 16 (App Router, React 19, Tailwind v4, shadcn/ui on Base UI).
+- `apps/web/src/server` — server side: SQLite, repositories, sessions, permissions. Everything there is `import "server-only"`.
 - `packages/contracts` — zod schemas + derived types, the shared domain contract.
 
 `@avatar/contracts` is consumed as **source**, not a build artifact: `transpilePackages` in `next.config.ts` plus a `paths` entry in `apps/web/tsconfig.json`. There is no dist step to keep in sync.
+
+**`experimental.turbopackScopeHoisting` is off, and must stay off** while contracts are consumed as source. Turbopack's scope hoisting reorders module init when a transpiled package lands in a server chunk shared by two or more route handlers; the build dies with `Cannot access 'am' before initialization` inside `contracts/primitives.ts`. One route builds fine, two do not. Building contracts to a dist would also fix it — at the cost of the sync step we deliberately avoided.
 
 **Root `devDependencies` must keep `@types/react`/`@types/react-dom`.** npm hoists `react`, `next-themes`, and `@base-ui` to the root `node_modules`; without React types at that level their `.d.ts` files cannot resolve the React namespace, and props like `children` silently vanish from third-party component types.
 
@@ -38,6 +48,17 @@ Consequences that are already encoded in the contracts:
 - The prompt controls **non-speech** behaviour — gestures, framing, pauses. Speech comes from the script text.
 
 **2. Phase 1 is a vertical slice, not all 21 sections.** Order: auth → avatar → project → scene → timeline → export. Admin, roles, plans, templates, and collaboration come after the slice works end to end. The spec's own phasing (all frontend, then backend, then AI) was rejected because the editor's document schema *is* the backend contract.
+
+## Where data lives (mid-migration)
+
+Ownership is split, deliberately and temporarily:
+
+- **The server owns identity** — users, credentials, sessions, verification tokens — in SQLite (`node:sqlite`, file at `apps/web/.data/avatar.sqlite`, migrations by `PRAGMA user_version` in `src/server/db.ts`). The session id is an httpOnly cookie; `src/proxy.ts` only checks that the cookie exists (an optimistic check, as the Next docs prescribe), and every route handler re-checks it against the database. Permissions are enforced in `src/server/authorize.ts`, not by hiding buttons.
+- **The browser still owns content** — projects, documents, avatars, voices, assets, credits, jobs — in IndexedDB via `dataClient`.
+
+Consequences to keep in mind until the second half migrates: a newly registered user gets their credit account created client-side by the register form; the admin screen fetches users over HTTP and joins them with counts read locally; the demo user id is pinned to `usr_demo` on both sides, because the browser's demo projects are keyed by it.
+
+`src/lib/auth/ports.ts` is the seam. Swapping the browser implementation for `httpAuthService` changed no screen — that is the same trick to repeat for `dataClient`.
 
 ## Domain model
 

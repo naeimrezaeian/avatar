@@ -7,15 +7,29 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AUTH_ERROR_MESSAGES } from "@avatar/contracts";
-import { localAuthService } from "@/lib/auth/local-auth";
+import { authService } from "@/lib/auth/service";
 import { AuthError } from "@/lib/auth/ports";
 import { useSession } from "@/lib/auth/session-context";
-import { DEMO_CREDENTIALS } from "@/lib/data/seed";
+import { DEMO_CREDENTIALS } from "@/lib/auth/demo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+/**
+ * Куда вернуть человека после входа.
+ *
+ * proxy кладёт исходный адрес в `next`, когда выбрасывает на страницу входа с
+ * истёкшей сессией: ссылка на конкретный проект иначе терялась бы. Принимаются
+ * только внутренние пути — «//evil.example» тоже начинается со слэша, и без
+ * второй проверки форма входа стала бы открытым перенаправлением.
+ */
+function nextRoute(): Route {
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next as Route;
+  return "/dashboard";
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -26,15 +40,15 @@ export function LoginForm() {
   const [resent, setResent] = useState<string | null>(null);
 
   const login = useMutation({
-    mutationFn: () => localAuthService.login({ email, password }),
+    mutationFn: () => authService.login({ email, password }),
     onSuccess: async () => {
       await refresh();
-      router.replace("/dashboard");
+      router.replace(nextRoute());
     },
   });
 
   const resend = useMutation({
-    mutationFn: () => localAuthService.resendVerification(email),
+    mutationFn: () => authService.resendVerification(email),
     onSuccess: (pending) => setResent(pending?.link ?? null),
   });
 
