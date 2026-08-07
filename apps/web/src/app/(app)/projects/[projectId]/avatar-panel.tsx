@@ -123,7 +123,7 @@ export function AvatarPanel({
                 переносились и занимали по три строки на вариант, а разобрать
                 четыре способа проще по значкам. Название остаётся в подсказке
                 и в озвучиваемой метке. */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="flex flex-wrap gap-2">
               <BackgroundTile
                 label="Исходный фон"
                 active={style?.background.kind === "original"}
@@ -318,7 +318,7 @@ function BackgroundTile({
       aria-pressed={active}
       style={style}
       className={cn(
-        "flex aspect-square items-center justify-center rounded-lg border transition-colors",
+        "flex size-16 shrink-0 items-center justify-center rounded-lg border transition-colors",
         active ? "border-ring ring-ring/30 ring-2" : "border-border hover:bg-muted",
       )}
     >
@@ -348,7 +348,7 @@ function BackgroundUploadTile({
     <label
       title="Своё изображение"
       className={cn(
-        "relative flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors",
+        "relative flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border transition-colors",
         active ? "border-ring ring-ring/30 ring-2" : "border-border hover:bg-muted",
       )}
     >

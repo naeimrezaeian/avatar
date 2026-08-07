@@ -258,7 +258,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         durationSec={projectDurationSec(document)}
       />
 
-      <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]">
         <ScriptPanel
           projectId={projectId}
           document={document}
@@ -274,15 +274,15 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         {/* Кадр и оформление — одна колонка: настройки вида относятся к тому,
             что показано выше, и держать их на другом краю экрана значило бы
             заставлять переводить взгляд после каждой правки. */}
-        <div className="space-y-3">
-          <Card>
+        <div className="flex flex-col gap-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+          <Card className="shrink-0">
             <CardContent className="pt-5">
               <PreviewPlayer document={document} />
             </CardContent>
           </Card>
 
           {scene ? (
-            <Card>
+            <Card className="flex-1">
               <CardContent className="pt-5">
                 <AvatarPanel
                   projectId={projectId}
@@ -295,7 +295,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           ) : null}
         </div>
 
-        <div className="space-y-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+        <div className="flex flex-col gap-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
           {scene ? (
             <>
               <Card>
