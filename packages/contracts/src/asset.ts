@@ -26,7 +26,20 @@ export const UPLOAD_LIMITS = {
   },
   voiceSample: {
     maxBytes: 10 * 1024 * 1024,
-    mimeTypes: ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/flac'],
+    /**
+     * webm и ogg — это то, что выдаёт запись с микрофона: MediaRecorder пишет
+     * webm/opus в Chrome и ogg/opus в Firefox, а mp4 — в Safari. Без них
+     * собственная кнопка записи создавала файл, который платформа же и
+     * отвергала.
+     */
+    mimeTypes: [
+      'audio/mpeg',
+      'audio/wav',
+      'audio/mp4',
+      'audio/ogg',
+      'audio/webm',
+      'audio/flac',
+    ],
     minDurationSec: 5,
     maxDurationSec: 120,
   },

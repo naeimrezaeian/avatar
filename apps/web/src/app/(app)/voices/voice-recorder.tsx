@@ -9,6 +9,31 @@ import { cn } from "@/lib/utils";
 const { minDurationSec, maxDurationSec } = UPLOAD_LIMITS.voiceSample;
 
 /**
+ * Формат записи выбирается явно, а не отдаётся на усмотрение браузера.
+ *
+ * MediaRecorder по умолчанию пишет тем, чем умеет: Chrome — webm/opus, Firefox
+ * — ogg/opus, Safari — mp4. Список перебирается в порядке предпочтения и
+ * сверяется с isTypeSupported, поэтому платформа получает формат, который она
+ * же принимает, а файл — расширение, соответствующее содержимому.
+ */
+const RECORDING_FORMATS = [
+  { mimeType: "audio/mp4", extension: "m4a" },
+  { mimeType: "audio/webm", extension: "webm" },
+  { mimeType: "audio/ogg", extension: "ogg" },
+] as const;
+
+function pickFormat(): { mimeType?: string; extension: string } {
+  if (typeof MediaRecorder === "undefined") return { extension: "webm" };
+
+  for (const format of RECORDING_FORMATS) {
+    if (MediaRecorder.isTypeSupported(format.mimeType)) return format;
+  }
+  // Ни один из перечисленных не подошёл — пишем тем, что выберет браузер, и
+  // расширение берём из фактического типа записи.
+  return { extension: "webm" };
+}
+
+/**
  * Запись образца голоса прямо в браузере (п.6 ТЗ).
  *
  * Поток микрофона останавливается явно при размонтировании: без этого индикатор
@@ -46,7 +71,11 @@ export function VoiceRecorder({ onRecorded }: { onRecorded: (file: File) => void
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const recorder = new MediaRecorder(stream);
+      const format = pickFormat();
+      const recorder = new MediaRecorder(
+        stream,
+        format.mimeType ? { mimeType: format.mimeType } : undefined,
+      );
       recorderRef.current = recorder;
       const chunks: Blob[] = [];
 
@@ -56,10 +85,9 @@ export function VoiceRecorder({ onRecorded }: { onRecorded: (file: File) => void
 
       recorder.onstop = () => {
         stopTracks();
-        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-        // Формат из MediaRecorder — webm/ogg; имя даём говорящее, тип берём
-        // фактический, чтобы проверка ограничений не спорила с реальностью.
-        onRecorded(new File([blob], "Запись голоса.webm", { type: blob.type }));
+        const type = recorder.mimeType || format.mimeType || "audio/webm";
+        const blob = new Blob(chunks, { type });
+        onRecorded(new File([blob], `Запись голоса.${format.extension}`, { type }));
       };
 
       recorder.start();

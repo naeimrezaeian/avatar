@@ -192,7 +192,10 @@ export function CreateVoiceDialog({
             </TabsContent>
 
             <TabsContent value="recording" className="mt-3">
-              <VoiceRecorder onRecorded={(recorded) => setFile(recorded)} />
+              {/* Запись проходит ту же проверку, что и загруженный файл: иначе
+                  о неподходящем формате сообщалось бы только при отправке —
+                  после согласия и заполнения формы. */}
+              <VoiceRecorder onRecorded={acceptFile} />
               {file && source === "recording" ? (
                 <p className="text-muted-foreground mt-2 text-center text-xs">
                   Запись готова: {Math.round(file.size / 1024)} КБ

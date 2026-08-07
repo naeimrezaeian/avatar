@@ -21,6 +21,32 @@ function formatMb(bytes: number): string {
 }
 
 /**
+ * Один и тот же формат приходит под разными именами.
+ *
+ * MediaRecorder дописывает к типу кодек — «audio/webm;codecs=opus», — а
+ * операционные системы отдают исторические синонимы вроде «audio/x-wav».
+ * Сравнивать такие строки со списком напрямую нельзя: файл отвергался бы из-за
+ * подписи, а не из-за содержимого.
+ */
+const MIME_ALIASES: Record<string, string> = {
+  "audio/x-wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/vnd.wave": "audio/wav",
+  "audio/x-pn-wav": "audio/wav",
+  "audio/mp3": "audio/mpeg",
+  "audio/x-m4a": "audio/mp4",
+  "audio/aac": "audio/mp4",
+  "audio/x-flac": "audio/flac",
+  "image/jpg": "image/jpeg",
+  "video/x-quicktime": "video/quicktime",
+};
+
+export function normalizeMimeType(type: string): string {
+  const base = type.split(";")[0]!.trim().toLowerCase();
+  return MIME_ALIASES[base] ?? base;
+}
+
+/**
  * Проверка до чтения файла. Ограничения продиктованы моделью генерации
  * (изображение и аудио — до 10 МБ), и нарушать их бессмысленно: задача всё
  * равно упадёт, но уже после ожидания в очереди.
@@ -35,7 +61,7 @@ export function validateFile(file: File, kind: UploadKind): void {
   }
 
   const allowed: readonly string[] = limits.mimeTypes;
-  if (!allowed.includes(file.type)) {
+  if (!allowed.includes(normalizeMimeType(file.type))) {
     throw new UploadValidationError(`Формат ${file.type || "неизвестен"} не поддерживается`);
   }
 }
@@ -75,7 +101,19 @@ async function probeAudio(
 ): Promise<{ durationSec: number; waveformPeaks: number[] }> {
   const buffer = await file.arrayBuffer();
   const context = new OfflineAudioContext(1, 1, 44_100);
-  const decoded = await context.decodeAudioData(buffer);
+
+  let decoded: AudioBuffer;
+  try {
+    decoded = await context.decodeAudioData(buffer);
+  } catch {
+    // Тип файла может пройти проверку, а содержимое — не раскодироваться:
+    // битый файл, экзотический кодек внутри знакомого контейнера. Сообщаем об
+    // этом словами, а не исключением DOMException без текста.
+    throw new UploadValidationError(
+      "Не удалось прочитать аудио: файл повреждён или записан кодеком, который браузер не открывает",
+    );
+  }
+
   return {
     durationSec: Math.round(decoded.duration * 10) / 10,
     waveformPeaks: buildPeaks(decoded.getChannelData(0), 400),
@@ -95,11 +133,15 @@ export async function uploadFile(input: {
 }): Promise<Asset> {
   validateFile(input.file, input.kind);
 
-  const assetKind: AssetKind = input.file.type.startsWith("image/")
+  // В ассете хранится приведённый тип: дальше по нему выбирают проигрыватель и
+  // ветку обработки, и «audio/webm;codecs=opus» там только мешает.
+  const mimeType = normalizeMimeType(input.file.type);
+
+  const assetKind: AssetKind = mimeType.startsWith("image/")
     ? "image"
-    : input.file.type.startsWith("audio/")
+    : mimeType.startsWith("audio/")
       ? "audio"
-      : input.file.type.startsWith("video/")
+      : mimeType.startsWith("video/")
         ? "video"
         : KIND_BY_UPLOAD[input.kind];
 
@@ -144,7 +186,7 @@ export async function uploadFile(input: {
     // Адрес, по которому файл будет лежать после переезда на бэкенд; локально
     // ссылка выдаётся из стора blobs через assetObjectUrl().
     url: `local://assets/${id}`,
-    mimeType: input.file.type,
+    mimeType,
     sizeBytes: input.file.size,
     durationSec,
     width,
