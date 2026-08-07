@@ -258,7 +258,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         durationSec={projectDurationSec(document)}
       />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,320px)]">
+      <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]">
         <ScriptPanel
           projectId={projectId}
           document={document}
@@ -271,7 +271,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           onAdd={addScene}
         />
 
-        <Card className="h-fit">
+        <Card>
           <CardContent className="pt-5">
             <PreviewPlayer document={document} />
           </CardContent>
@@ -303,6 +303,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
               <Card>
                 <CardContent className="pt-5">
                   <AvatarPanel
+                    projectId={projectId}
                     scene={scene}
                     clip={avatarClip}
                     sceneIndex={document.sceneOrder.indexOf(scene.id)}

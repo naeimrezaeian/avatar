@@ -45,7 +45,7 @@ export function ScriptPanel({
   onAdd: () => void;
 }) {
   return (
-    <Card className="h-fit xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+    <Card className="xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
       <CardContent className="space-y-2 pt-5">
         <div className="mb-1 flex items-center gap-2">
           <ListOrdered className="text-muted-foreground size-4" />
