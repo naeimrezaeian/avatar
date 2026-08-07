@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookmarkPlus, Captions, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Scene, isJobActive, type AvatarClip } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { newId } from "@/lib/data/db";
@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AvatarPanel } from "./avatar-panel";
 import { ExportDialog, projectDurationSec } from "./export-dialog";
 import { ScriptPanel } from "./script-panel";
-import { SceneSettings } from "./scene-settings";
+import { SceneActions } from "./scene-actions";
 
 /**
  * Рабочее пространство проекта — единственный экран работы над роликом.
@@ -248,40 +248,6 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         </div>
 
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
-
-        <Button
-          variant="secondary"
-          onClick={() => {
-            if (!scene || scene.durationSec === null) return;
-            apply((draft) => syncSceneSubtitles(draft, scene), { label: "Субтитры сцены" });
-          }}
-          disabled={!scene || scene.durationSec === null}
-          title={
-            scene?.durationSec === null
-              ? "Сначала синтезируйте озвучку: без неё неизвестно время реплик"
-              : undefined
-          }
-        >
-          <Captions className="size-4" />
-          Субтитры
-        </Button>
-
-        <Button
-          variant="secondary"
-          onClick={() => void dataClient.projects.update(projectId, { isTemplate: true })}
-        >
-          <BookmarkPlus className="size-4" />
-          Как шаблон
-        </Button>
-
-        <Button
-          onClick={() => setExportOpen(true)}
-          disabled={projectDurationSec(document) === 0}
-          className="bg-gradient-accent text-white hover:opacity-90"
-        >
-          <Download className="size-4" />
-          Экспорт
-        </Button>
       </div>
 
       <ExportDialog
@@ -300,51 +266,60 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           busySceneIds={busyVoiceSceneIds}
           onSelect={setSelectedId}
           onChangeText={changeText}
+          onChangeTitle={(sceneId, title) => patchScene(sceneId, { title })}
           onRemove={removeScene}
           onAdd={addScene}
         />
 
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="pt-5">
-              <PreviewPlayer document={document} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-5">
-              {scene ? (
-                <SceneSettings
-                  projectId={projectId}
-                  scene={scene}
-                  avatar={avatar}
-                  onChange={(patch) => patchScene(scene.id, patch)}
-                  activeJobs={activeJobs}
-                />
-              ) : (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  Добавьте первую сцену в сценарии слева.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="h-fit xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+        <Card className="h-fit">
           <CardContent className="pt-5">
-            {scene ? (
-              <AvatarPanel
-                scene={scene}
-                clip={avatarClip}
-                sceneIndex={document.sceneOrder.indexOf(scene.id)}
-              />
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Оформление появится, когда будет выбрана сцена.
-              </p>
-            )}
+            <PreviewPlayer document={document} />
           </CardContent>
         </Card>
+
+        <div className="space-y-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+          {scene ? (
+            <>
+              <Card>
+                <CardContent className="pt-5">
+                  <SceneActions
+                    projectId={projectId}
+                    scene={scene}
+                    avatar={avatar}
+                    activeJobs={activeJobs}
+                    projectDurationSec={projectDurationSec(document)}
+                    onChangePrompt={(prompt) => patchScene(scene.id, { prompt })}
+                    onSubtitles={() => {
+                      if (scene.durationSec === null) return;
+                      apply((draft) => syncSceneSubtitles(draft, scene), {
+                        label: "Субтитры сцены",
+                      });
+                    }}
+                    onExport={() => setExportOpen(true)}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-5">
+                  <AvatarPanel
+                    scene={scene}
+                    clip={avatarClip}
+                    sceneIndex={document.sceneOrder.indexOf(scene.id)}
+                  />
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-muted-foreground text-sm">
+                  Добавьте первую сцену в сценарии слева.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
       <Timeline document={document} />

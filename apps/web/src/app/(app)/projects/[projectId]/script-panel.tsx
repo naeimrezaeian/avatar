@@ -29,6 +29,7 @@ export function ScriptPanel({
   busySceneIds,
   onSelect,
   onChangeText,
+  onChangeTitle,
   onRemove,
   onAdd,
 }: {
@@ -39,6 +40,7 @@ export function ScriptPanel({
   busySceneIds: Set<string>;
   onSelect: (sceneId: string) => void;
   onChangeText: (sceneId: string, text: string) => void;
+  onChangeTitle: (sceneId: string, title: string) => void;
   onRemove: (sceneId: string) => void;
   onAdd: () => void;
 }) {
@@ -66,6 +68,7 @@ export function ScriptPanel({
               busy={busySceneIds.has(sceneId)}
               onSelect={() => onSelect(sceneId)}
               onChange={(text) => onChangeText(sceneId, text)}
+              onChangeTitle={(title) => onChangeTitle(sceneId, title)}
               onRemove={() => onRemove(sceneId)}
             />
           );
@@ -92,6 +95,7 @@ function ScriptLine({
   busy,
   onSelect,
   onChange,
+  onChangeTitle,
   onRemove,
 }: {
   projectId: string;
@@ -101,6 +105,7 @@ function ScriptLine({
   busy: boolean;
   onSelect: () => void;
   onChange: (text: string) => void;
+  onChangeTitle: (title: string) => void;
   onRemove: () => void;
 }) {
   const estimated = estimateSpeechDurationSec(scene.scriptText, scene.speech);
@@ -127,31 +132,45 @@ function ScriptLine({
       )}
       onFocusCapture={onSelect}
     >
-      <div className="mb-1 flex items-center gap-2">
+      {/* Название сцены стоит над её текстом: подпись нужна там же, где
+          содержимое, а не в отдельном блоке на другом краю экрана. */}
+      <div className="mb-1 flex items-center gap-1.5">
         <span className="text-muted-foreground w-4 shrink-0 text-xs tabular-nums">
           {index + 1}
         </span>
-        <span className="text-muted-foreground flex-1 truncate text-xs">
-          {scene.durationSec !== null
-            ? `${scene.durationSec.toFixed(1)} с`
-            : estimated > 0
-              ? `≈${estimated.toFixed(1)} с`
-              : "пусто"}
-        </span>
-        {state === "ready" ? <CheckCircle2 className="text-success size-3.5" /> : null}
+        <input
+          value={scene.title}
+          onChange={(event) => onChangeTitle(event.target.value)}
+          onFocus={onSelect}
+          placeholder="Название сцены"
+          aria-label={`Название сцены ${index + 1}`}
+          className="placeholder:text-muted-foreground/70 min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-sm font-medium outline-none"
+        />
+        {state === "ready" ? <CheckCircle2 className="text-success size-3.5 shrink-0" /> : null}
         {state === "outdated" ? (
-          <AlertTriangle className="text-warning size-3.5" aria-label="Результат устарел" />
+          <AlertTriangle
+            className="text-warning size-3.5 shrink-0"
+            aria-label="Результат устарел"
+          />
         ) : null}
         <Button
           variant="ghost"
           size="icon-xs"
-          className="opacity-0 group-hover:opacity-100"
+          className="shrink-0 opacity-0 group-hover:opacity-100"
           aria-label="Удалить сцену"
           onClick={onRemove}
         >
           <Trash2 className="size-3.5" />
         </Button>
       </div>
+
+      <p className="text-muted-foreground mb-1 pl-6 text-xs">
+        {scene.durationSec !== null
+          ? `${scene.durationSec.toFixed(1)} с`
+          : estimated > 0
+            ? `≈${estimated.toFixed(1)} с`
+            : "пусто"}
+      </p>
 
       <div className="flex items-start gap-2">
         <Textarea

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Clapperboard, Loader2 } from "lucide-react";
+import { AlertTriangle, Captions, Clapperboard, Download, Loader2 } from "lucide-react";
 import {
   SCENE_MAX_DURATION_SEC,
   SCENE_MIN_DURATION_SEC,
@@ -18,36 +18,42 @@ import {
 import { InsufficientCreditsError, dataClient, queryKeys } from "@/lib/data";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 const STATE_HINTS: Record<string, { text: string; tone: "muted" | "warning" | "success" }> = {
-  empty: { text: "Добавьте текст, чтобы озвучить сцену", tone: "muted" },
-  needs_voiceover: { text: "Текст готов — можно синтезировать озвучку", tone: "muted" },
+  empty: { text: "Добавьте текст в сценарии, чтобы озвучить сцену", tone: "muted" },
+  needs_voiceover: { text: "Озвучьте реплику кнопкой в сценарии", tone: "muted" },
   needs_video: { text: "Озвучка готова — можно генерировать видео", tone: "muted" },
   outdated: { text: "Входные данные изменились после генерации", tone: "warning" },
   ready: { text: "Сцена сгенерирована полностью", tone: "success" },
 };
 
 /**
- * Настройки выбранной сцены: постановка кадра, речь, смета и запуск.
+ * Постановка кадра и действия над сценой.
  *
- * Сам текст реплики правится в сценарии слева и здесь не дублируется — иначе
- * два поля с одним содержимым расходились бы на глазах у пользователя.
+ * Всё, что запускает работу, собрано в одной колонке: раньше промпт и смета
+ * жили по центру, а экспорт и субтитры — в шапке, и путь «написал — озвучил —
+ * снял — собрал» приходилось искать по всему экрану.
  */
-export function SceneSettings({
+export function SceneActions({
   projectId,
   scene,
   avatar,
-  onChange,
   activeJobs,
+  projectDurationSec,
+  onChangePrompt,
+  onSubtitles,
+  onExport,
 }: {
   projectId: string;
   scene: Scene;
   avatar: Avatar | null;
-  onChange: (patch: Partial<Scene>) => void;
   activeJobs: GenerationJob[];
+  projectDurationSec: number;
+  onChangePrompt: (prompt: string) => void;
+  onSubtitles: () => void;
+  onExport: () => void;
 }) {
   const account = useQuery({
     queryKey: queryKeys.creditAccount,
@@ -72,8 +78,7 @@ export function SceneSettings({
   );
 
   const estimatedSec = estimateSpeechDurationSec(scene.scriptText, scene.speech);
-  const plannedSec = scene.durationSec ?? estimatedSec;
-  const videoCostSec = estimateCostSeconds(plannedSec, "720p");
+  const videoCostSec = estimateCostSeconds(scene.durationSec ?? estimatedSec, "720p");
 
   const tooShort = estimatedSec > 0 && estimatedSec < SCENE_MIN_DURATION_SEC;
   const tooLong = estimatedSec > SCENE_MAX_DURATION_SEC;
@@ -85,28 +90,20 @@ export function SceneSettings({
   });
 
   const hint = STATE_HINTS[state]!;
-  const error = startVideo.error;
+  const available = account.data
+    ? account.data.balanceSeconds - account.data.reservedSeconds
+    : 0;
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-2">
-        <Label htmlFor="scene-title">Название сцены</Label>
-        <Input
-          id="scene-title"
-          value={scene.title}
-          onChange={(event) => onChange({ title: event.target.value })}
-          placeholder="Например: вступление"
-        />
-      </div>
-
       <div className="grid gap-2">
         <Label htmlFor="scene-prompt">Промпт для видео</Label>
         <Textarea
           id="scene-prompt"
           value={scene.prompt}
-          onChange={(event) => onChange({ prompt: event.target.value })}
+          onChange={(event) => onChangePrompt(event.target.value)}
           placeholder="Поза, жесты, план, поведение в паузах"
-          rows={2}
+          rows={3}
         />
         <p className="text-muted-foreground text-xs">
           Промпт управляет тем, что происходит между репликами. Саму речь задаёт текст сценария.
@@ -147,45 +144,68 @@ export function SceneSettings({
 
       <div className="border-border space-y-3 border-t pt-4">
         <div className="text-muted-foreground flex flex-wrap items-baseline justify-between gap-2 text-sm">
-          <span>Стоимость генерации видео</span>
+          <span>Стоимость сцены</span>
           <span className="text-foreground font-medium tabular-nums">
-            {secondsToMinutesLabel(videoCostSec)} мин
-            {account.data
-              ? ` из ${secondsToMinutesLabel(account.data.balanceSeconds - account.data.reservedSeconds)}`
-              : ""}
+            {secondsToMinutesLabel(videoCostSec)} из {secondsToMinutesLabel(available)} мин
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => startVideo.mutate()}
-            disabled={
-              scene.voiceoverAssetId === null ||
-              avatar?.status !== "ready" ||
-              videoJob !== undefined ||
-              startVideo.isPending
-            }
-            className="bg-gradient-accent text-white hover:opacity-90"
-          >
-            {videoJob ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Clapperboard className="size-4" />
-            )}
-            {videoJob ? `Видео ${videoJob.progressPct}%` : "Сгенерировать видео"}
-          </Button>
-        </div>
+        <Button
+          onClick={() => startVideo.mutate()}
+          disabled={
+            scene.voiceoverAssetId === null ||
+            avatar?.status !== "ready" ||
+            videoJob !== undefined ||
+            startVideo.isPending
+          }
+          className="bg-gradient-accent w-full text-white hover:opacity-90"
+        >
+          {videoJob ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Clapperboard className="size-4" />
+          )}
+          {videoJob ? `Генерация ${videoJob.progressPct}%` : "Сгенерировать видео"}
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={onSubtitles}
+          disabled={scene.durationSec === null}
+          title={
+            scene.durationSec === null
+              ? "Сначала озвучьте реплику: без озвучки неизвестно время слов"
+              : undefined
+          }
+          className="w-full"
+        >
+          <Captions className="size-4" />
+          Субтитры сцены
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={onExport}
+          disabled={projectDurationSec === 0}
+          title={
+            projectDurationSec === 0 ? "Собирать нечего: на шкале нет клипов" : undefined
+          }
+          className="w-full"
+        >
+          <Download className="size-4" />
+          Экспорт проекта
+        </Button>
 
         <p className="text-muted-foreground text-xs">
           Озвучка запускается кнопкой рядом с текстом в сценарии и не тарифицируется: послушайте
           реплику до того, как тратить кредиты на видео.
         </p>
 
-        {error ? (
+        {startVideo.error ? (
           <p className="text-destructive text-sm">
-            {error instanceof InsufficientCreditsError
-              ? `Недостаточно кредитов: нужно ${secondsToMinutesLabel(error.requiredSeconds)} мин, доступно ${secondsToMinutesLabel(error.availableSeconds)} мин`
-              : error.message}
+            {startVideo.error instanceof InsufficientCreditsError
+              ? `Недостаточно кредитов: нужно ${secondsToMinutesLabel(startVideo.error.requiredSeconds)} мин, доступно ${secondsToMinutesLabel(startVideo.error.availableSeconds)} мин`
+              : startVideo.error.message}
           </p>
         ) : null}
       </div>
