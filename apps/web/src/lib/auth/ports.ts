@@ -4,6 +4,7 @@ import type {
   LoginInput,
   RegisterInput,
   Session,
+  UpdateProfileInput,
   User,
 } from "@avatar/contracts";
 
@@ -46,6 +47,8 @@ export interface AuthService {
   requestPasswordReset(email: string): Promise<PendingEmail | null>;
   resetPassword(token: string, newPassword: string): Promise<void>;
   changePassword(input: ChangePasswordInput): Promise<void>;
+  /** Правка имени и фамилии в собственном профиле. */
+  updateProfile(input: UpdateProfileInput): Promise<User>;
 
   listSessions(): Promise<Session[]>;
   revokeSession(sessionId: string): Promise<void>;

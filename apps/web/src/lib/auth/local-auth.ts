@@ -7,6 +7,7 @@ import {
   RegisterInput,
   Session,
   TOKEN_TTL_HOURS,
+  UpdateProfileInput,
   User,
   VerificationToken,
   type ChangePasswordInput,
@@ -318,6 +319,25 @@ export const localAuthService: AuthService = {
     const salt = generateSalt();
     const hash = await hashPassword(input.newPassword, salt);
     await db.put("credentials", { userId: currentAuth.user.id, salt, hash });
+  },
+
+  async updateProfile(input: UpdateProfileInput) {
+    const auth = await localAuthService.current();
+    if (!auth) throw new AuthError("invalid_credentials", "Требуется вход");
+
+    const parsed = UpdateProfileInput.parse(input);
+    const db = await getDb();
+    const stored = await db.get("users", auth.user.id);
+    if (!stored) throw new AuthError("invalid_credentials", "Требуется вход");
+
+    const updated = User.parse({
+      ...stored,
+      firstName: parsed.firstName.trim(),
+      lastName: parsed.lastName.trim(),
+      updatedAt: nowIso(),
+    });
+    await db.put("users", updated);
+    return updated;
   },
 
   async listSessions() {

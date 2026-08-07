@@ -34,6 +34,17 @@ export const LoginInput = z.object({
 });
 export type LoginInput = z.infer<typeof LoginInput>;
 
+/**
+ * Правка собственного профиля. Почта сюда не входит: её смена — отдельный
+ * поток с подтверждением нового адреса, иначе учётную запись можно увести
+ * одним полем формы.
+ */
+export const UpdateProfileInput = z.object({
+  firstName: z.string().min(1, 'Укажите имя').max(64),
+  lastName: z.string().min(1, 'Укажите фамилию').max(64),
+});
+export type UpdateProfileInput = z.infer<typeof UpdateProfileInput>;
+
 export const ChangePasswordInput = z.object({
   currentPassword: z.string().min(1, 'Введите текущий пароль'),
   newPassword: Password,

@@ -1,15 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import {
-  Circle,
-  Eraser,
-  Image as ImageIcon,
-  Loader2,
-  Palette,
-  Square,
-  Upload,
-} from "lucide-react";
+import { Camera, Circle, Eraser, Loader2, Palette, Square, Upload } from "lucide-react";
 import {
   type AvatarClip,
   type AvatarStyle,
@@ -102,12 +94,15 @@ export function AvatarPanel({
                 четыре способа проще по значкам. Название остаётся в подсказке
                 и в озвучиваемой метке. */}
             <div className="flex flex-wrap gap-2">
+              {/* «Как на фото» и «своё изображение» — разные вещи, но обе про
+                  картинку, поэтому у первой значок камеры, а не рамки с
+                  изображением: два одинаковых значка читались как повтор. */}
               <BackgroundTile
-                label="Исходный фон"
+                label="Как на фото аватара"
                 active={style?.background.kind === "original"}
                 onClick={() => patchBackground({ kind: "original" })}
               >
-                <ImageIcon className="size-4" />
+                <Camera className="size-4" />
               </BackgroundTile>
 
               <BackgroundTile

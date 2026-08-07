@@ -1,14 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Laptop, Loader2, LogOut, X } from "lucide-react";
-import { PASSWORD_MIN_LENGTH, Password, type Session } from "@avatar/contracts";
+import {
+  PASSWORD_MIN_LENGTH,
+  Password,
+  availableSeconds,
+  secondsToMinutesLabel,
+  type Session,
+  type UserRole,
+} from "@avatar/contracts";
 import { localAuthService } from "@/lib/auth/local-auth";
 import { AuthError } from "@/lib/auth/ports";
 import { useSession } from "@/lib/auth/session-context";
+import { dataClient, queryKeys } from "@/lib/data";
 import { formatUpdatedAt } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,37 +26,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export function SettingsClient() {
-  const { user } = useSession();
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Администратор",
+  manager: "Менеджер",
+  user: "Пользователь",
+};
 
+export function SettingsClient() {
   return (
     <div className="max-w-2xl space-y-4">
-      <Card>
-        <CardContent className="space-y-3 pt-5">
-          <h2 className="font-semibold">Профиль</h2>
-          <dl className="grid gap-2 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground text-xs">Имя</dt>
-              <dd>
-                {user?.firstName} {user?.lastName}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground text-xs">Электронная почта</dt>
-              <dd className="break-all">{user?.email}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground text-xs">Роль</dt>
-              <dd>{user?.role === "admin" ? "Администратор" : user?.role === "manager" ? "Менеджер" : "Пользователь"}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground text-xs">Дата регистрации</dt>
-              <dd>{user ? new Date(user.createdAt).toLocaleDateString("ru") : "—"}</dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
-
+      <ProfileCard />
       <ChangePasswordCard />
       <SessionsCard />
 
@@ -57,6 +46,161 @@ export function SettingsClient() {
         </AlertDescription>
       </Alert>
     </div>
+  );
+}
+
+/**
+ * Профиль целиком: кто вошёл, чем оплачивается работа и как выйти.
+ *
+ * Раньше это жило в меню под аватаром в шапке, и шапка существовала ради двух
+ * значков. Данные профиля — редкая, но осмысленная страница, а значки в углу
+ * каждой страницы стоили 64 px по высоте везде.
+ */
+function ProfileCard() {
+  const { user, refresh, logout } = useSession();
+  const router = useRouter();
+
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const [lastName, setLastName] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const account = useQuery({
+    queryKey: queryKeys.creditAccount,
+    queryFn: () => dataClient.credits.getAccount(user!.id),
+    enabled: user !== null,
+  });
+
+  const save = useMutation({
+    mutationFn: () =>
+      localAuthService.updateProfile({
+        firstName: firstName ?? user!.firstName,
+        lastName: lastName ?? user!.lastName,
+      }),
+    onSuccess: async () => {
+      setSaved(true);
+      await refresh();
+    },
+  });
+
+  if (!user) return null;
+
+  // Поля начинают жить своей жизнью только после первой правки: иначе значение
+  // из сессии пришлось бы копировать в состояние эффектом и следить, чтобы
+  // копия не разъехалась с обновлённым профилем.
+  const first = firstName ?? user.firstName;
+  const last = lastName ?? user.lastName;
+  const initials = `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+  const dirty = first !== user.firstName || last !== user.lastName;
+  const valid = first.trim().length > 0 && last.trim().length > 0;
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <Avatar className="size-14">
+            {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
+            <AvatarFallback className="bg-gradient-accent font-semibold text-white">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold">
+              {user.firstName} {user.lastName}
+            </h2>
+            <p className="text-muted-foreground text-sm break-all">{user.email}</p>
+          </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={async () => {
+              await logout();
+              router.replace("/login");
+            }}
+          >
+            <LogOut className="size-3.5" />
+            Выйти
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+          {user.emailVerifiedAt ? (
+            <Badge variant="outline" className="text-success">
+              <Check className="size-3" />
+              Почта подтверждена
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-warning">
+              <X className="size-3" />
+              Почта не подтверждена
+            </Badge>
+          )}
+          {user.status === "blocked" ? <Badge variant="destructive">Заблокирован</Badge> : null}
+        </div>
+
+        <form
+          className="grid gap-4 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSaved(false);
+            save.mutate();
+          }}
+        >
+          <div className="grid gap-2">
+            <Label htmlFor="profile-first-name">Имя</Label>
+            <Input
+              id="profile-first-name"
+              value={first}
+              autoComplete="given-name"
+              onChange={(event) => setFirstName(event.target.value)}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="profile-last-name">Фамилия</Label>
+            <Input
+              id="profile-last-name"
+              value={last}
+              autoComplete="family-name"
+              onChange={(event) => setLastName(event.target.value)}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            {save.error ? (
+              <p className="text-destructive mb-2 text-sm">
+                {save.error instanceof AuthError ? save.error.message : "Не удалось сохранить"}
+              </p>
+            ) : null}
+            {saved && !dirty ? <p className="text-success mb-2 text-sm">Профиль сохранён</p> : null}
+
+            <Button type="submit" disabled={!dirty || !valid || save.isPending}>
+              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Сохранить профиль
+            </Button>
+          </div>
+        </form>
+
+        <dl className="border-border grid gap-3 border-t pt-4 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-muted-foreground text-xs">Доступно минут</dt>
+            <dd className="tabular-nums">
+              {account.data ? secondsToMinutesLabel(availableSeconds(account.data)) : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Дата регистрации</dt>
+            <dd>{new Date(user.createdAt).toLocaleDateString("ru")}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground text-xs">Последний вход</dt>
+            <dd>{user.lastLoginAt ? formatUpdatedAt(user.lastLoginAt) : "—"}</dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
   );
 }
 

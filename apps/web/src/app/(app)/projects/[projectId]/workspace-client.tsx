@@ -12,6 +12,7 @@ import { syncSceneClips } from "@/lib/editor/operations";
 import { syncSceneSubtitles } from "@/lib/editor/subtitles";
 import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-session";
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { PreviewPlayer } from "@/components/preview/preview-player";
 import { Timeline } from "@/components/timeline/timeline";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,15 @@ import { SceneActions } from "./scene-actions";
 export function WorkspaceClient({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  /**
+   * Сценарий во всю ширину.
+   *
+   * Колонка в 300 px годится, чтобы пробежать список сцен, но не чтобы писать в
+   * ней текст: строка обрывается на трёх словах. Разворот отдаёт сценарию всю
+   * ширину, а кадр и настройки на это время убираются — они всё равно не нужны,
+   * пока набирают реплики.
+   */
+  const [scriptExpanded, setScriptExpanded] = useState(false);
 
   const session = useEditorSession(projectId);
   useUndoShortcuts();
@@ -262,16 +272,24 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           колонка, а карточка оформления в ней не растягивается — поэтому под
           ползунками нет пустого поля, и при этом все три колонки кончаются на
           одной линии. */}
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]">
+      <div
+        className={cn(
+          "grid gap-3",
+          !scriptExpanded &&
+            "xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]",
+        )}
+      >
         {/* Сценарий не задаёт высоту ряда: на широком экране карточка вынута из
             потока и растянута по строке. Иначе длинный список сцен вытягивал
             колонку вниз, и под карточкой оформления оставалось пустое поле. */}
-        <div className="xl:relative">
+        <div className={cn(!scriptExpanded && "xl:relative")}>
           <ScriptPanel
             projectId={projectId}
             document={document}
             activeSceneId={activeSceneId}
             busySceneIds={busyVoiceSceneIds}
+            expanded={scriptExpanded}
+            onToggleExpanded={() => setScriptExpanded((value) => !value)}
             onSelect={setSelectedId}
             onChangeText={changeText}
             onChangeTitle={(sceneId, title) => patchScene(sceneId, { title })}
@@ -283,7 +301,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         {/* Кадр и оформление — одна колонка: настройки вида относятся к тому,
             что показано выше, и держать их на другом краю экрана значило бы
             заставлять переводить взгляд после каждой правки. */}
-        <div className="flex flex-col gap-3">
+        <div className={cn("flex flex-col gap-3", scriptExpanded && "hidden")}>
           <Card className="shrink-0">
             <CardContent className="pt-5">
               <PreviewPlayer document={document} />
@@ -299,7 +317,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className={cn("flex flex-col gap-3", scriptExpanded && "hidden")}>
           {scene ? (
             <>
               <Card>

@@ -7,11 +7,9 @@ import { CreditAccount } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useSession } from "@/lib/auth/session-context";
 import { Brand } from "./brand";
-import { NotificationBell } from "./notification-bell";
 import { CreditMeter } from "./credit-meter";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
-import { UserMenu } from "./user-menu";
 
 /**
  * Оболочка кабинета вместе с проверкой доступа.
@@ -62,16 +60,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-border/70 bg-background/85 sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-4 backdrop-blur-md sm:px-6">
+        {/* На широком экране шапки нет: колокольчик и меню профиля переехали в
+            «Уведомления» и «Настройки», а полоса ради них съедала 64 px сверху
+            на каждой странице. На узком она остаётся — там это единственный
+            способ добраться до навигации. */}
+        <header className="border-border/70 bg-background/85 sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-4 backdrop-blur-md sm:px-6 lg:hidden">
           <MobileNav role={user.role} />
-          <div className="lg:hidden">
-            <Brand />
-          </div>
-
-          <div className="ml-auto flex items-center gap-1 sm:gap-2">
-            <NotificationBell userId={user.id} />
-            <UserMenu user={user} />
-          </div>
+          <Brand />
         </header>
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>

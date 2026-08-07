@@ -1,6 +1,14 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ListOrdered, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ListOrdered,
+  Maximize2,
+  Minimize2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import {
   estimateSpeechDurationSec,
   sceneGenerationState,
@@ -27,6 +35,8 @@ export function ScriptPanel({
   document,
   activeSceneId,
   busySceneIds,
+  expanded,
+  onToggleExpanded,
   onSelect,
   onChangeText,
   onChangeTitle,
@@ -38,6 +48,9 @@ export function ScriptPanel({
   activeSceneId: string | null;
   /** Сцены с запущенным синтезом озвучки. */
   busySceneIds: Set<string>;
+  /** Панель занимает всю ширину рабочей области. */
+  expanded: boolean;
+  onToggleExpanded: () => void;
   onSelect: (sceneId: string) => void;
   onChangeText: (sceneId: string, text: string) => void;
   onChangeTitle: (sceneId: string, title: string) => void;
@@ -48,7 +61,12 @@ export function ScriptPanel({
     // На широком экране карточка занимает всю высоту ряда (её позиционирует
     // родитель), поэтому длина сценария меняет не высоту колонки, а длину
     // прокрутки внутри списка.
-    <Card className="flex flex-col overflow-hidden xl:absolute xl:inset-0">
+    <Card
+      className={cn(
+        "flex flex-col overflow-hidden",
+        !expanded && "xl:absolute xl:inset-0",
+      )}
+    >
       <CardContent className="flex min-h-0 flex-1 flex-col pt-5">
         <div className="mb-2 flex shrink-0 items-center gap-2">
           <ListOrdered className="text-muted-foreground size-4" />
@@ -56,6 +74,16 @@ export function ScriptPanel({
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             {document.sceneOrder.length}
           </span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onToggleExpanded}
+            aria-pressed={expanded}
+            aria-label={expanded ? "Свернуть сценарий" : "Развернуть сценарий на всю ширину"}
+            title={expanded ? "Свернуть сценарий" : "Развернуть сценарий на всю ширину"}
+          >
+            {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </Button>
         </div>
 
         <div className="-mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
@@ -70,6 +98,7 @@ export function ScriptPanel({
                 index={index}
                 active={sceneId === activeSceneId}
                 busy={busySceneIds.has(sceneId)}
+                expanded={expanded}
                 onSelect={() => onSelect(sceneId)}
                 onChange={(text) => onChangeText(sceneId, text)}
                 onChangeTitle={(title) => onChangeTitle(sceneId, title)}
@@ -100,6 +129,7 @@ function ScriptLine({
   index,
   active,
   busy,
+  expanded,
   onSelect,
   onChange,
   onChangeTitle,
@@ -110,6 +140,7 @@ function ScriptLine({
   index: number;
   active: boolean;
   busy: boolean;
+  expanded: boolean;
   onSelect: () => void;
   onChange: (text: string) => void;
   onChangeTitle: (title: string) => void;
@@ -185,7 +216,8 @@ function ScriptLine({
           onChange={(event) => onChange(event.target.value)}
           onFocus={onSelect}
           placeholder="Текст реплики…"
-          rows={3}
+          // В развёрнутой панели поле выше: там текст и пишут, а не просматривают.
+          rows={expanded ? 7 : 3}
           className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
         />
         <SceneVoiceButton projectId={projectId} scene={scene} busy={busy} />
