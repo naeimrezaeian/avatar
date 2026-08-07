@@ -18,6 +18,7 @@ import { useEditorStore } from "@/lib/editor/store";
 import { uploadFile } from "@/lib/data/uploads";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
 import { Label } from "@/components/ui/label";
+import { RangeField } from "@/components/ui/range-field";
 import { cn } from "@/lib/utils";
 
 const PRESET_COLORS = [
@@ -204,70 +205,28 @@ export function AvatarPanel({
             </div>
           </div>
 
-          <StyleSlider
+          <RangeField
             label="Скругление"
             value={style?.cornerRadiusPx ?? 0}
             min={0}
             max={400}
-            suffix=" px"
+            unit="px"
             disabled={style?.shape === "circle"}
             hint={style?.shape === "circle" ? "У круга скругление максимально" : undefined}
             onChange={(cornerRadiusPx) => patchStyle({ cornerRadiusPx })}
           />
 
-          <StyleSlider
+          <RangeField
             label="Приближение"
             value={style?.zoomPct ?? 100}
             min={50}
             max={300}
-            suffix=" %"
+            unit="%"
             onChange={(zoomPct) => patchStyle({ zoomPct })}
           />
         </>
       )}
 
-    </div>
-  );
-}
-
-function StyleSlider({
-  label,
-  value,
-  min,
-  max,
-  suffix,
-  disabled,
-  hint,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  suffix: string;
-  disabled?: boolean;
-  hint?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <div className="flex items-baseline justify-between">
-        <Label>{label}</Label>
-        <span className="text-muted-foreground text-sm tabular-nums">
-          {value}
-          {suffix}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="accent-primary w-full disabled:opacity-40"
-      />
-      {hint ? <p className="text-muted-foreground text-xs">{hint}</p> : null}
     </div>
   );
 }

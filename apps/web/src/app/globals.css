@@ -213,6 +213,52 @@
   }
 }
 
+@layer components {
+  /* Дорожка и бегунок ползунка: у input[type=range] нет классов Tailwind для
+     псевдоэлементов, поэтому они описаны здесь. */
+  .range-field {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .range-field::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 9999px;
+    background: var(--foreground);
+    cursor: pointer;
+    transition: transform 0.15s ease-out;
+  }
+
+  .range-field::-webkit-slider-thumb:hover {
+    transform: scale(1.12);
+  }
+
+  .range-field::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: none;
+    border-radius: 9999px;
+    background: var(--foreground);
+    cursor: pointer;
+  }
+
+  .range-field:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 30%, transparent);
+  }
+
+  .range-field:disabled {
+    cursor: default;
+  }
+}
+
 @layer utilities {
   .bg-gradient-accent {
     background-image: linear-gradient(135deg, var(--grad-from), var(--grad-to));

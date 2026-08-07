@@ -274,7 +274,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         {/* Кадр и оформление — одна колонка: настройки вида относятся к тому,
             что показано выше, и держать их на другом краю экрана значило бы
             заставлять переводить взгляд после каждой правки. */}
-        <div className="flex flex-col gap-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+        <div className="flex flex-col gap-3">
           <Card className="shrink-0">
             <CardContent className="pt-5">
               <PreviewPlayer document={document} />
@@ -290,7 +290,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
+        <div className="flex flex-col gap-3">
           {scene ? (
             <>
               <Card>
