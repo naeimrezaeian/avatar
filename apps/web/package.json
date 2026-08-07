@@ -14,7 +14,8 @@
     "check:auth": "tsx scripts/auth-check.ts",
     "check:admin": "tsx scripts/admin-check.ts",
     "check:system": "tsx scripts/system-check.ts",
-    "check:browser": "node scripts/diag.mjs"
+    "check:browser": "node scripts/diag.mjs",
+    "check:theme": "node scripts/theme-audit.mjs"
   },
   "dependencies": {
     "@avatar/contracts": "*",

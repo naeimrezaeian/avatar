@@ -168,6 +168,9 @@ function drawFrame(
   timeSec: number,
 ): void {
   const { width, height } = canvas;
+  // Кадр остаётся тёмным независимо от темы интерфейса: это поле видео, а не
+  // поверхность приложения, и светлая подложка искажала бы восприятие цвета
+  // будущего ролика.
   context.fillStyle = "#0d1017";
   context.fillRect(0, 0, width, height);
 
