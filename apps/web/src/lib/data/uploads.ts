@@ -130,6 +130,50 @@ async function probeAudio(
   };
 }
 
+/**
+ * Длительность и размер кадра видео.
+ *
+ * Читаются из самого файла: без них клип встал бы на шкалу с длительностью по
+ * умолчанию, и ролик обрывался бы на середине или тянул за собой пустоту.
+ * Огибающая для видео не считается — дорожка рисует его иначе.
+ */
+async function probeVideo(
+  file: File,
+): Promise<{ durationSec: number; width: number; height: number }> {
+  const url = URL.createObjectURL(file);
+  const element = document.createElement("video");
+  element.preload = "metadata";
+  element.src = url;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      element.addEventListener("loadedmetadata", () => resolve(), { once: true });
+      element.addEventListener(
+        "error",
+        () =>
+          reject(
+            new UploadValidationError(
+              "Не удалось прочитать видео: файл повреждён или записан кодеком, который браузер не открывает",
+            ),
+          ),
+        { once: true },
+      );
+    });
+
+    return {
+      durationSec: Number.isFinite(element.duration)
+        ? Math.round(element.duration * 10) / 10
+        : 0,
+      width: element.videoWidth,
+      height: element.videoHeight,
+    };
+  } finally {
+    element.removeAttribute("src");
+    element.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
 const KIND_BY_UPLOAD: Record<UploadKind, AssetKind> = {
   avatarImage: "image",
   voiceSample: "audio",
@@ -164,6 +208,11 @@ export async function uploadFile(input: {
     const size = await probeImage(input.file);
     width = size.width;
     height = size.height;
+  } else if (assetKind === "video") {
+    const probed = await probeVideo(input.file);
+    durationSec = probed.durationSec;
+    width = probed.width;
+    height = probed.height;
   } else if (assetKind === "audio") {
     const probed = await probeAudio(input.file);
     durationSec = probed.durationSec;

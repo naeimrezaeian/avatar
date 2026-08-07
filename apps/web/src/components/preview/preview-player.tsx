@@ -55,16 +55,15 @@ export function PreviewPlayer({ document }: { document: ProjectDocument }) {
     if (!playingRef.current) clockRef.current = playheadSec;
   }, [playheadSec]);
 
-  const stopAudio = useCallback((audio: PreviewMedia["audio"]) => {
-    audio.forEach((element) => {
-      element.pause();
-    });
+  const stopMedia = useCallback((current: PreviewMedia) => {
+    current.audio.forEach((element) => element.pause());
+    current.videos.forEach((element) => element.pause());
   }, []);
 
   useEffect(() => {
     playingRef.current = playing;
-    if (!playing) stopAudio(media.audio);
-  }, [playing, media.audio, stopAudio]);
+    if (!playing) stopMedia(media);
+  }, [playing, media, stopMedia]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -182,6 +181,18 @@ function drawFrame(
       continue;
     }
 
+    if (clip.kind === "video") {
+      const video = media.videos.get(clip.id);
+      // Кадр берётся у <video> тем же drawImage: холст принимает его наравне с
+      // картинкой, и отдельная ветка отрисовки для видео не нужна.
+      if (video && video.readyState >= 2) {
+        drawImage(context, width, height, video, clip.transform, null);
+      } else {
+        drawPlaceholder(context, width, height, clip);
+      }
+      continue;
+    }
+
     const image = media.images.get(clip.id);
     if (!image) {
       drawPlaceholder(context, width, height, clip);
@@ -255,7 +266,7 @@ function drawImage(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLVideoElement,
   transform: { anchor: string; offsetXRatio: number; offsetYRatio: number; scale: number; opacity: number } | null,
   style: AvatarStyle | null,
 ): void {
@@ -272,7 +283,11 @@ function drawImage(
   // Вписываем по высоте кадра — так лицо остаётся целиком видимым в любом
   // соотношении сторон.
   const drawHeight = height * scale;
-  const drawWidth = (image.width / image.height) * drawHeight;
+  // У <video> собственный размер лежит в videoWidth/videoHeight: width и height
+  // там — это размеры элемента на странице, а он в разметке не участвует.
+  const sourceWidth = "videoWidth" in image ? image.videoWidth : image.width;
+  const sourceHeight = "videoHeight" in image ? image.videoHeight : image.height;
+  const drawWidth = (sourceWidth / sourceHeight) * drawHeight;
 
   const anchorX =
     transform?.anchor === "left"
@@ -418,7 +433,7 @@ function syncAudio(
   timeSec: number,
   playing: boolean,
 ): void {
-  media.audio.forEach((element, clipId) => {
+  const sync = (element: HTMLMediaElement, clipId: string, videoTrack: boolean) => {
     const clip = document.clips[clipId];
     if (!clip) return;
 
@@ -426,17 +441,26 @@ function syncAudio(
     const active = clip.startSec <= timeSec && clipEndSec(clip) > timeSec;
     const muted = track?.muted === true || ("audio" in clip && clip.audio.muted);
 
-    if (!active || !playing || muted) {
+    // Видео за пределами клипа тоже останавливается, но время ему выставляется
+    // и на паузе: иначе на холсте застыл бы кадр из другого места ролика.
+    if (!active || !playing || (muted && !videoTrack)) {
       if (!element.paused) element.pause();
-      return;
+      if (!videoTrack) return;
     }
 
     const target = clip.sourceInSec + (timeSec - clip.startSec);
     if (Math.abs(element.currentTime - target) > MAX_DRIFT_SEC) {
-      element.currentTime = target;
+      element.currentTime = Math.max(0, target);
     }
 
+    element.muted = muted;
     element.volume = "audio" in clip ? clipGain(clip, timeSec) : 1;
-    if (element.paused) void element.play().catch(() => undefined);
-  });
+
+    if (active && playing && element.paused) {
+      void element.play().catch(() => undefined);
+    }
+  };
+
+  media.audio.forEach((element, clipId) => sync(element, clipId, false));
+  media.videos.forEach((element, clipId) => sync(element, clipId, true));
 }

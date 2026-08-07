@@ -13,11 +13,17 @@ import { getAssetBlob } from "@/lib/data/uploads";
 export type PreviewMedia = {
   images: Map<string, HTMLImageElement>;
   audio: Map<string, HTMLAudioElement>;
+  videos: Map<string, HTMLVideoElement>;
   /** Клипы, для которых файла нет: превью рисует на их месте заглушку. */
   missing: Set<string>;
 };
 
-const EMPTY: PreviewMedia = { images: new Map(), audio: new Map(), missing: new Set() };
+const EMPTY: PreviewMedia = {
+  images: new Map(),
+  audio: new Map(),
+  videos: new Map(),
+  missing: new Set(),
+};
 
 /**
  * Медиа для отрисовки кадра. Элементы создаются один раз на документ: заводить
@@ -45,10 +51,12 @@ export function usePreviewMedia(document: ProjectDocument | null): PreviewMedia 
 
     let cancelled = false;
     const urls: string[] = [];
+    const elements: HTMLMediaElement[] = [];
 
     const build = async () => {
       const images = new Map<string, HTMLImageElement>();
       const audio = new Map<string, HTMLAudioElement>();
+      const videos = new Map<string, HTMLVideoElement>();
       const missing = new Set<string>();
 
       const avatars = await dataClient.avatars.list();
@@ -81,24 +89,49 @@ export function usePreviewMedia(document: ProjectDocument | null): PreviewMedia 
         if (blob.type.startsWith("audio/")) {
           const element = new Audio(url);
           element.preload = "auto";
+          elements.push(element);
           audio.set(clip.id, element);
         } else if (blob.type.startsWith("image/")) {
           const element = new Image();
           element.src = url;
           await element.decode().catch(() => undefined);
           images.set(clip.id, element);
+        } else if (blob.type.startsWith("video/")) {
+          const element = globalThis.document.createElement("video");
+          element.src = url;
+          element.preload = "auto";
+          // playsInline — иначе на телефоне ролик уходит в системный
+          // полноэкранный проигрыватель вместо отрисовки на холсте.
+          element.playsInline = true;
+          // Ждём первый кадр: до него рисовать нечего, и на месте клипа мигала
+          // бы заглушка «файл недоступен».
+          await new Promise<void>((resolve) => {
+            if (element.readyState >= 2) return resolve();
+            element.addEventListener("loadeddata", () => resolve(), { once: true });
+            element.addEventListener("error", () => resolve(), { once: true });
+          });
+          elements.push(element);
+          if (element.readyState >= 2) videos.set(clip.id, element);
+          else missing.add(clip.id);
         } else {
           missing.add(clip.id);
         }
       }
 
-      if (!cancelled) setMedia({ images, audio, missing });
+      if (!cancelled) setMedia({ images, audio, videos, missing });
     };
 
     void build();
 
     return () => {
       cancelled = true;
+      // Элементы останавливаются до отзыва ссылок: играющий <video> с уже
+      // отозванным object URL продолжал бы держать декодер и шуметь в консоли.
+      elements.forEach((element) => {
+        element.pause();
+        element.removeAttribute("src");
+        element.load();
+      });
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- пересборка привязана к набору источников, а не к объекту документа
