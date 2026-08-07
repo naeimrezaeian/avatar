@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Captions, Clapperboard, Download, Loader2 } from "lucide-react";
+import { Captions, Clapperboard, Download, Loader2 } from "lucide-react";
 import {
   SCENE_MAX_DURATION_SEC,
   SCENE_MIN_DURATION_SEC,
@@ -16,16 +16,23 @@ import {
   type Scene,
 } from "@avatar/contracts";
 import { InsufficientCreditsError, dataClient, queryKeys } from "@/lib/data";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const STATE_HINTS: Record<string, { text: string; tone: "muted" | "warning" | "success" }> = {
+/**
+ * Короткая подсказка о том, что делать со сценой дальше.
+ *
+ * Состояния «устарело» здесь нет намеренно: предупреждение о том, что входные
+ * данные изменились после генерации, убрано из этой колонки. Признак остаётся
+ * у сцены в сценарии — значком рядом с её названием.
+ */
+const STATE_HINTS: Partial<
+  Record<string, { text: string; tone: "muted" | "success" }>
+> = {
   empty: { text: "Добавьте текст в сценарии, чтобы озвучить сцену", tone: "muted" },
   needs_voiceover: { text: "Озвучьте реплику кнопкой в сценарии", tone: "muted" },
   needs_video: { text: "Озвучка готова — можно генерировать видео", tone: "muted" },
-  outdated: { text: "Входные данные изменились после генерации", tone: "warning" },
   ready: { text: "Сцена сгенерирована полностью", tone: "success" },
 };
 
@@ -89,7 +96,7 @@ export function SceneActions({
     mutationFn: () => dataClient.generation.startVideo({ projectId, sceneId: scene.id }),
   });
 
-  const hint = STATE_HINTS[state]!;
+  const hint = STATE_HINTS[state] ?? null;
   const available = account.data
     ? account.data.balanceSeconds - account.data.reservedSeconds
     : 0;
@@ -103,7 +110,8 @@ export function SceneActions({
           value={scene.prompt}
           onChange={(event) => onChangePrompt(event.target.value)}
           placeholder="Поза, жесты, план, поведение в паузах"
-          rows={3}
+          rows={8}
+          className="min-h-40"
         />
         <p className="text-muted-foreground text-xs">
           Промпт управляет тем, что происходит между репликами. Саму речь задаёт текст сценария.
@@ -121,26 +129,11 @@ export function SceneActions({
         </p>
       ) : null}
 
-      {state === "outdated" ? (
-        <Alert>
-          <AlertTriangle className="size-4" />
-          <AlertDescription>
-            {hint.text}. Перегенерируйте, иначе в сборку попадёт старый результат.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <p
-          className={
-            hint.tone === "success"
-              ? "text-success text-sm"
-              : hint.tone === "warning"
-                ? "text-warning text-sm"
-                : "text-muted-foreground text-sm"
-          }
-        >
+      {hint ? (
+        <p className={hint.tone === "success" ? "text-success text-sm" : "text-muted-foreground text-sm"}>
           {hint.text}
         </p>
-      )}
+      ) : null}
 
       <div className="border-border space-y-3 border-t pt-4">
         <div className="text-muted-foreground flex flex-wrap items-baseline justify-between gap-2 text-sm">
