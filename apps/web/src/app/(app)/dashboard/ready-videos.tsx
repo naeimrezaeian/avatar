@@ -14,7 +14,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Срок жизни публичной ссылки по умолчанию. */
 const SHARE_DAYS = 7;
 
-export function VideosClient() {
+/**
+ * Готовые видео на обзоре.
+ *
+ * Раньше это была отдельная страница, но заходить на неё было незачем: результат
+ * работы — то, ради чего открывают платформу, и он должен быть виден сразу под
+ * остатком кредитов, а не за ещё одним пунктом меню.
+ */
+export function ReadyVideos() {
   const versions = useQuery({
     queryKey: queryKeys.renderVersions(),
     queryFn: () => dataClient.renderVersions.list(),

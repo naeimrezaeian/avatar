@@ -3,11 +3,8 @@ import type { Permission } from "@avatar/contracts";
 import {
   AudioLines,
   Bell,
-  Clapperboard,
   CreditCard,
   FolderKanban,
-  History,
-  Images,
   LayoutDashboard,
   Mic,
   Settings,
@@ -42,14 +39,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/podcast", label: "Подкасты", icon: Mic },
       { href: "/avatars", label: "Аватары", icon: UserRound },
       { href: "/voices", label: "Голоса", icon: AudioLines },
-    ],
-  },
-  {
-    label: "Материалы",
-    items: [
-      { href: "/videos", label: "Готовые видео", icon: Clapperboard },
-      { href: "/library", label: "Медиатека", icon: Images },
-      { href: "/history", label: "История генераций", icon: History },
     ],
   },
   {

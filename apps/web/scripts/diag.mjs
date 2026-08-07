@@ -25,7 +25,7 @@ console.log('3. Боковая навигация видна:', shell ? 'да' :
 const text = await page.locator('main').innerText();
 console.log('4. Содержимое обзора:', text.slice(0, 120).replace(/\n+/g, ' | '));
 
-for (const [label, path] of [['Проекты', '/projects'], ['Аватары', '/avatars'], ['Медиатека', '/library'], ['Тариф', '/billing'], ['Админка', '/admin']]) {
+for (const [label, path] of [['Проекты', '/projects'], ['Аватары', '/avatars'], ['Голоса', '/voices'], ['Тариф', '/billing'], ['Админка', '/admin']]) {
   await page.goto(`${base}${path}`, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(1500);
   const body = await page.locator('main').innerText();

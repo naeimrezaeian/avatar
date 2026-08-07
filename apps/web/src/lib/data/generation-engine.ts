@@ -401,9 +401,10 @@ async function completeJob(jobId: string, durationSec: number): Promise<void> {
     title: JOB_TITLES[job.kind].done,
     body:
       job.kind === "export"
-        ? "Ролик собран и доступен в библиотеке готовых видео."
+        ? "Ролик собран и доступен в списке готовых видео на обзоре."
         : "Результат добавлен в проект.",
-    href: job.kind === "export" ? "/videos" : job.projectId ? `/projects/${job.projectId}` : null,
+    href:
+      job.kind === "export" ? "/dashboard" : job.projectId ? `/projects/${job.projectId}` : null,
   });
   await logRepository.write({
     level: "info",
@@ -473,7 +474,7 @@ async function failJob(jobId: string): Promise<void> {
     kind: "job_failed",
     title: `${JOB_TITLES[job.kind].label}: ошибка`,
     body: "Кредиты возвращены на счёт. Задачу можно перезапустить.",
-    href: job.projectId ? `/projects/${job.projectId}` : "/history",
+    href: job.projectId ? `/projects/${job.projectId}` : "/dashboard",
   });
   await logRepository.write({
     level: "error",

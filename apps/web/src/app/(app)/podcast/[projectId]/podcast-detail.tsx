@@ -316,7 +316,7 @@ function ReadyVideos({ versions }: { versions: RenderVersion[] }) {
           size="sm"
           nativeButton={false}
           role="link"
-          render={<Link href="/videos" />}
+          render={<Link href="/dashboard" />}
           className="ml-auto"
         >
           <Download className="size-3.5" />

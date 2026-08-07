@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const ROUTES = [
   '/login', '/register', '/forgot-password',
   '/dashboard', '/projects', '/projects/new', '/avatars', '/voices',
-  '/library', '/videos', '/billing', '/notifications', '/settings', '/history',
+  '/billing', '/notifications', '/settings',
   '/podcast', '/podcast/new',
   '/admin', '/admin/users', '/admin/queue', '/admin/plans', '/admin/settings', '/admin/logs',
   '/projects/prj_demo',

@@ -63,7 +63,7 @@ async function main() {
     kind: "job_succeeded",
     title: "Готово",
     body: "Тело",
-    href: "/videos",
+    href: "/dashboard",
   });
   await dataClient.notifications.create({
     userId: USER,
