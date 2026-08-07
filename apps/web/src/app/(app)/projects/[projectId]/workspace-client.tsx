@@ -271,11 +271,29 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           onAdd={addScene}
         />
 
-        <Card>
-          <CardContent className="pt-5">
-            <PreviewPlayer document={document} />
-          </CardContent>
-        </Card>
+        {/* Кадр и оформление — одна колонка: настройки вида относятся к тому,
+            что показано выше, и держать их на другом краю экрана значило бы
+            заставлять переводить взгляд после каждой правки. */}
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="pt-5">
+              <PreviewPlayer document={document} />
+            </CardContent>
+          </Card>
+
+          {scene ? (
+            <Card>
+              <CardContent className="pt-5">
+                <AvatarPanel
+                  projectId={projectId}
+                  scene={scene}
+                  clip={avatarClip}
+                  sceneIndex={document.sceneOrder.indexOf(scene.id)}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
 
         <div className="space-y-3 xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
           {scene ? (
@@ -296,17 +314,6 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
                       });
                     }}
                     onExport={() => setExportOpen(true)}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-5">
-                  <AvatarPanel
-                    projectId={projectId}
-                    scene={scene}
-                    clip={avatarClip}
-                    sceneIndex={document.sceneOrder.indexOf(scene.id)}
                   />
                 </CardContent>
               </Card>

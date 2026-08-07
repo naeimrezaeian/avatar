@@ -106,7 +106,7 @@ export function PreviewPlayer({ document }: { document: ProjectDocument }) {
 
   return (
     <div className="space-y-3">
-      <div className="bg-muted mx-auto w-full overflow-hidden rounded-xl">
+      <div className="bg-muted mx-auto w-full max-w-160 overflow-hidden rounded-xl">
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
