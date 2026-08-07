@@ -258,18 +258,27 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         durationSec={projectDurationSec(document)}
       />
 
+      {/* Колонки выравниваются по нижнему краю: высоту ряда задаёт центральная
+          колонка, а карточка оформления в ней не растягивается — поэтому под
+          ползунками нет пустого поля, и при этом все три колонки кончаются на
+          одной линии. */}
       <div className="grid gap-3 xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_minmax(0,320px)]">
-        <ScriptPanel
-          projectId={projectId}
-          document={document}
-          activeSceneId={activeSceneId}
-          busySceneIds={busyVoiceSceneIds}
-          onSelect={setSelectedId}
-          onChangeText={changeText}
-          onChangeTitle={(sceneId, title) => patchScene(sceneId, { title })}
-          onRemove={removeScene}
-          onAdd={addScene}
-        />
+        {/* Сценарий не задаёт высоту ряда: на широком экране карточка вынута из
+            потока и растянута по строке. Иначе длинный список сцен вытягивал
+            колонку вниз, и под карточкой оформления оставалось пустое поле. */}
+        <div className="xl:relative">
+          <ScriptPanel
+            projectId={projectId}
+            document={document}
+            activeSceneId={activeSceneId}
+            busySceneIds={busyVoiceSceneIds}
+            onSelect={setSelectedId}
+            onChangeText={changeText}
+            onChangeTitle={(sceneId, title) => patchScene(sceneId, { title })}
+            onRemove={removeScene}
+            onAdd={addScene}
+          />
+        </div>
 
         {/* Кадр и оформление — одна колонка: настройки вида относятся к тому,
             что показано выше, и держать их на другом краю экрана значило бы
@@ -282,7 +291,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           </Card>
 
           {scene ? (
-            <Card className="flex-1">
+            <Card>
               <CardContent className="pt-5">
                 <AvatarPanel projectId={projectId} clip={avatarClip} />
               </CardContent>

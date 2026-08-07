@@ -45,9 +45,12 @@ export function ScriptPanel({
   onAdd: () => void;
 }) {
   return (
-    <Card className="h-full">
-      <CardContent className="space-y-2 pt-5">
-        <div className="mb-1 flex items-center gap-2">
+    // На широком экране карточка занимает всю высоту ряда (её позиционирует
+    // родитель), поэтому длина сценария меняет не высоту колонки, а длину
+    // прокрутки внутри списка.
+    <Card className="flex flex-col overflow-hidden xl:absolute xl:inset-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col pt-5">
+        <div className="mb-2 flex shrink-0 items-center gap-2">
           <ListOrdered className="text-muted-foreground size-4" />
           <p className="font-medium">Сценарий</p>
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
@@ -55,33 +58,37 @@ export function ScriptPanel({
           </span>
         </div>
 
-        {document.sceneOrder.map((sceneId, index) => {
-          const scene = document.scenes[sceneId];
-          if (!scene) return null;
-          return (
-            <ScriptLine
-              key={sceneId}
-              projectId={projectId}
-              scene={scene}
-              index={index}
-              active={sceneId === activeSceneId}
-              busy={busySceneIds.has(sceneId)}
-              onSelect={() => onSelect(sceneId)}
-              onChange={(text) => onChangeText(sceneId, text)}
-              onChangeTitle={(title) => onChangeTitle(sceneId, title)}
-              onRemove={() => onRemove(sceneId)}
-            />
-          );
-        })}
+        <div className="-mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
+          {document.sceneOrder.map((sceneId, index) => {
+            const scene = document.scenes[sceneId];
+            if (!scene) return null;
+            return (
+              <ScriptLine
+                key={sceneId}
+                projectId={projectId}
+                scene={scene}
+                index={index}
+                active={sceneId === activeSceneId}
+                busy={busySceneIds.has(sceneId)}
+                onSelect={() => onSelect(sceneId)}
+                onChange={(text) => onChangeText(sceneId, text)}
+                onChangeTitle={(title) => onChangeTitle(sceneId, title)}
+                onRemove={() => onRemove(sceneId)}
+              />
+            );
+          })}
 
-        <Button variant="ghost" className="w-full justify-start" onClick={onAdd}>
-          <Plus className="size-4" />
-          Добавить сцену
-        </Button>
+          {/* Кнопка идёт сразу за последней сценой, а не прижата к низу
+              карточки: добавляют сцену в конец списка, туда и тянется рука. */}
+          <Button variant="ghost" className="w-full justify-start" onClick={onAdd}>
+            <Plus className="size-4" />
+            Добавить сцену
+          </Button>
 
-        <p className="text-muted-foreground pt-1 text-xs">
-          Вставьте текст с пустыми строками между абзацами — он сам разложится по сценам.
-        </p>
+          <p className="text-muted-foreground pt-1 text-xs">
+            Вставьте текст с пустыми строками между абзацами — он сам разложится по сценам.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
