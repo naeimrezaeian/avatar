@@ -190,7 +190,13 @@ export function AvatarPanel({
                 <button
                   key={shape}
                   type="button"
-                  onClick={() => patchStyle({ shape })}
+                  onClick={() =>
+                    patchStyle(
+                      shape === "circle" && (style?.cornerRadiusPx ?? 0) === 0
+                        ? { shape, cornerRadiusPx: 400 }
+                        : { shape },
+                    )
+                  }
                   className={cn(
                     "flex items-center justify-center gap-2 rounded-lg border py-2 text-sm transition-colors",
                     style?.shape === shape
@@ -199,31 +205,35 @@ export function AvatarPanel({
                   )}
                 >
                   {shape === "circle" ? <Circle className="size-4" /> : <Square className="size-4" />}
-                  {shape === "circle" ? "Круг" : "Исходная"}
+                  {shape === "circle" ? "Обрезать" : "Исходная"}
                 </button>
               ))}
             </div>
           </div>
 
-          <RangeField
-            label="Скругление"
-            value={style?.cornerRadiusPx ?? 0}
-            min={0}
-            max={400}
-            unit="px"
-            disabled={style?.shape === "circle"}
-            hint={style?.shape === "circle" ? "У круга скругление максимально" : undefined}
-            onChange={(cornerRadiusPx) => patchStyle({ cornerRadiusPx })}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <RangeField
+              label="Скругление"
+              value={style?.cornerRadiusPx ?? 0}
+              min={0}
+              max={400}
+              unit="px"
+              // Исходный кадр не обрезается, поэтому скруглять в нём нечего:
+              // скругление относится к обрезанному кадру и включается вместе с
+              // ним.
+              disabled={style?.shape === "original"}
+              onChange={(cornerRadiusPx) => patchStyle({ cornerRadiusPx })}
+            />
 
-          <RangeField
-            label="Приближение"
-            value={style?.zoomPct ?? 100}
-            min={50}
-            max={300}
-            unit="%"
-            onChange={(zoomPct) => patchStyle({ zoomPct })}
-          />
+            <RangeField
+              label="Приближение"
+              value={style?.zoomPct ?? 100}
+              min={50}
+              max={300}
+              unit="%"
+              onChange={(zoomPct) => patchStyle({ zoomPct })}
+            />
+          </div>
         </>
       )}
 

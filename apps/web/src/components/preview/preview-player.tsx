@@ -235,13 +235,15 @@ function drawImage(
   context.globalAlpha = transform?.opacity ?? 1;
   context.save();
 
-  if (style && (style.shape === "circle" || style.cornerRadiusPx > 0)) {
-    // Радиус задан в пикселях кадра 1080p, поэтому пересчитывается под текущий
-    // холст — иначе скругление менялось бы вместе с масштабом предпросмотра.
-    const radius =
-      style.shape === "circle"
-        ? Math.min(drawWidth, drawHeight) / 2
-        : (style.cornerRadiusPx / 1080) * height;
+  // Исходный кадр не обрезается вовсе; обрезанный скругляется на заданную
+  // величину — вплоть до полной окружности. Радиус задан в пикселях кадра
+  // 1080p и пересчитывается под холст, иначе скругление менялось бы вместе с
+  // масштабом предпросмотра.
+  if (style && style.shape === "circle") {
+    const radius = Math.min(
+      (style.cornerRadiusPx / 1080) * height,
+      Math.min(drawWidth, drawHeight) / 2,
+    );
 
     context.beginPath();
     context.roundRect(x, y, drawWidth, drawHeight, radius);
