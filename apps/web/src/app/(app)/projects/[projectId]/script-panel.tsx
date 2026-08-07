@@ -9,6 +9,7 @@ import {
   type ProjectDocument,
   type Scene,
 } from "@avatar/contracts";
+import { SceneVoiceButton } from "./scene-voice-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,15 +23,20 @@ import { cn } from "@/lib/utils";
  * одна, а на шкале внизу видно, как эти же сцены разложены во времени.
  */
 export function ScriptPanel({
+  projectId,
   document,
   activeSceneId,
+  busySceneIds,
   onSelect,
   onChangeText,
   onRemove,
   onAdd,
 }: {
+  projectId: string;
   document: ProjectDocument;
   activeSceneId: string | null;
+  /** Сцены с запущенным синтезом озвучки. */
+  busySceneIds: Set<string>;
   onSelect: (sceneId: string) => void;
   onChangeText: (sceneId: string, text: string) => void;
   onRemove: (sceneId: string) => void;
@@ -53,9 +59,11 @@ export function ScriptPanel({
           return (
             <ScriptLine
               key={sceneId}
+              projectId={projectId}
               scene={scene}
               index={index}
               active={sceneId === activeSceneId}
+              busy={busySceneIds.has(sceneId)}
               onSelect={() => onSelect(sceneId)}
               onChange={(text) => onChangeText(sceneId, text)}
               onRemove={() => onRemove(sceneId)}
@@ -77,16 +85,20 @@ export function ScriptPanel({
 }
 
 function ScriptLine({
+  projectId,
   scene,
   index,
   active,
+  busy,
   onSelect,
   onChange,
   onRemove,
 }: {
+  projectId: string;
   scene: Scene;
   index: number;
   active: boolean;
+  busy: boolean;
   onSelect: () => void;
   onChange: (text: string) => void;
   onRemove: () => void;
@@ -141,14 +153,17 @@ function ScriptLine({
         </Button>
       </div>
 
-      <Textarea
-        value={scene.scriptText}
-        onChange={(event) => onChange(event.target.value)}
-        onFocus={onSelect}
-        placeholder="Текст реплики…"
-        rows={3}
-        className="resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-      />
+      <div className="flex items-start gap-2">
+        <Textarea
+          value={scene.scriptText}
+          onChange={(event) => onChange(event.target.value)}
+          onFocus={onSelect}
+          placeholder="Текст реплики…"
+          rows={3}
+          className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+        />
+        <SceneVoiceButton projectId={projectId} scene={scene} busy={busy} />
+      </div>
     </div>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, AudioLines, Clapperboard, Loader2 } from "lucide-react";
+import { AlertTriangle, Clapperboard, Loader2 } from "lucide-react";
 import {
-  MODEL_VERSIONS,
   SCENE_MAX_DURATION_SEC,
   SCENE_MIN_DURATION_SEC,
   estimateCostSeconds,
@@ -17,7 +16,6 @@ import {
   type Scene,
 } from "@avatar/contracts";
 import { InsufficientCreditsError, dataClient, queryKeys } from "@/lib/data";
-import { useAssetUrl } from "@/lib/data/use-asset-url";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,8 +54,6 @@ export function SceneSettings({
     queryFn: () => dataClient.credits.getAccount("usr_demo"),
   });
 
-  const voiceoverUrl = useAssetUrl(scene.voiceoverAssetId);
-
   // Состояние выводится из хэшей текущих входных данных: хранить его нельзя, оно
   // разъезжалось бы с текстом при каждом нажатии клавиши.
   const state = sceneGenerationState(
@@ -82,18 +78,14 @@ export function SceneSettings({
   const tooShort = estimatedSec > 0 && estimatedSec < SCENE_MIN_DURATION_SEC;
   const tooLong = estimatedSec > SCENE_MAX_DURATION_SEC;
 
-  const voiceoverJob = activeJobs.find((job) => job.kind === "tts");
   const videoJob = activeJobs.find((job) => job.kind === "avatar_video");
 
-  const startVoiceover = useMutation({
-    mutationFn: () => dataClient.generation.startVoiceover({ projectId, sceneId: scene.id }),
-  });
   const startVideo = useMutation({
     mutationFn: () => dataClient.generation.startVideo({ projectId, sceneId: scene.id }),
   });
 
   const hint = STATE_HINTS[state]!;
-  const error = startVoiceover.error ?? startVideo.error;
+  const error = startVideo.error;
 
   return (
     <div className="space-y-5">
@@ -120,34 +112,6 @@ export function SceneSettings({
           Промпт управляет тем, что происходит между репликами. Саму речь задаёт текст сценария.
         </p>
       </div>
-
-      <fieldset className="grid gap-3 sm:grid-cols-3">
-        <legend className="mb-2 text-sm font-medium">Параметры речи</legend>
-        <SpeechSlider
-          label="Скорость"
-          value={scene.speech.speedPct}
-          min={50}
-          max={200}
-          suffix="%"
-          onChange={(speedPct) => onChange({ speech: { ...scene.speech, speedPct } })}
-        />
-        <SpeechSlider
-          label="Тон"
-          value={scene.speech.pitchSemitones}
-          min={-12}
-          max={12}
-          suffix=" пт"
-          onChange={(pitchSemitones) => onChange({ speech: { ...scene.speech, pitchSemitones } })}
-        />
-        <SpeechSlider
-          label="Громкость"
-          value={scene.speech.volumePct}
-          min={0}
-          max={200}
-          suffix="%"
-          onChange={(volumePct) => onChange({ speech: { ...scene.speech, volumePct } })}
-        />
-      </fieldset>
 
       {tooShort ? (
         <p className="text-warning text-xs">
@@ -181,13 +145,6 @@ export function SceneSettings({
         </p>
       )}
 
-      {voiceoverUrl ? (
-        <div className="space-y-1.5">
-          <Label>Озвучка</Label>
-          <audio controls src={voiceoverUrl} className="w-full" preload="metadata" />
-        </div>
-      ) : null}
-
       <div className="border-border space-y-3 border-t pt-4">
         <div className="text-muted-foreground flex flex-wrap items-baseline justify-between gap-2 text-sm">
           <span>Стоимость генерации видео</span>
@@ -200,25 +157,6 @@ export function SceneSettings({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => startVoiceover.mutate()}
-            disabled={
-              scene.scriptText.trim().length === 0 ||
-              tooShort ||
-              tooLong ||
-              voiceoverJob !== undefined ||
-              startVoiceover.isPending
-            }
-          >
-            {voiceoverJob ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <AudioLines className="size-4" />
-            )}
-            {voiceoverJob ? `Озвучка ${voiceoverJob.progressPct}%` : "Синтезировать озвучку"}
-          </Button>
-
           <Button
             onClick={() => startVideo.mutate()}
             disabled={
@@ -239,8 +177,8 @@ export function SceneSettings({
         </div>
 
         <p className="text-muted-foreground text-xs">
-          Озвучка не тарифицируется: проверьте текст на слух до того, как тратить кредиты на
-          видео. Модель: {MODEL_VERSIONS.avatarVideo}.
+          Озвучка запускается кнопкой рядом с текстом в сценарии и не тарифицируется: послушайте
+          реплику до того, как тратить кредиты на видео.
         </p>
 
         {error ? (
@@ -252,41 +190,5 @@ export function SceneSettings({
         ) : null}
       </div>
     </div>
-  );
-}
-
-function SpeechSlider({
-  label,
-  value,
-  min,
-  max,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  suffix: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="grid gap-1.5 text-sm">
-      <span className="flex items-baseline justify-between">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground tabular-nums">
-          {value}
-          {suffix}
-        </span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="accent-primary w-full"
-      />
-    </label>
   );
 }

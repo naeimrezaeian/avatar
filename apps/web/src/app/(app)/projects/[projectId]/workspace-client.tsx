@@ -125,6 +125,13 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
     (job) => isJobActive(job) && job.sceneId === activeSceneId,
   );
 
+  // Какие сцены сейчас озвучиваются — нужно кнопке в строке сценария.
+  const busyVoiceSceneIds = new Set(
+    (jobs.data ?? [])
+      .filter((job) => isJobActive(job) && job.kind === "tts" && job.sceneId !== null)
+      .map((job) => job.sceneId as string),
+  );
+
   const avatarClip =
     scene !== null
       ? ((Object.values(document.clips).find(
@@ -133,10 +140,12 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       : null;
 
   const addScene = () => {
+    // Аватар и голос берутся из проекта: они выбраны при его создании и внутри
+    // не меняются, поэтому подставлять сюда «первый готовый» нельзя — сцены
+    // разъехались бы по говорящим.
     const previous = scene ?? Object.values(document.scenes)[0] ?? null;
-    const defaultAvatar = avatars.data?.find((item) => item.status === "ready") ?? null;
-    const avatarId = previous?.avatarId ?? defaultAvatar?.id;
-    const voiceId = previous?.voiceId ?? defaultAvatar?.voiceId;
+    const avatarId = project.data?.defaultAvatarId ?? previous?.avatarId;
+    const voiceId = project.data?.defaultVoiceId ?? previous?.voiceId;
     if (!avatarId || !voiceId) return;
 
     const created = Scene.parse({
@@ -285,8 +294,10 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
 
       <div className="grid gap-3 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,320px)]">
         <ScriptPanel
+          projectId={projectId}
           document={document}
           activeSceneId={activeSceneId}
+          busySceneIds={busyVoiceSceneIds}
           onSelect={setSelectedId}
           onChangeText={changeText}
           onRemove={removeScene}

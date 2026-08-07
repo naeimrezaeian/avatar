@@ -121,6 +121,13 @@ export const Project = z
     coverAssetId: Id.nullable().default(null),
     format: ProjectFormat.default('standard'),
     /**
+     * Аватар и голос выбираются один раз при создании проекта и наследуются
+     * новыми сценами. Внутри проекта их не меняют: смена лица или голоса
+     * посреди ролика — это другой ролик, а не правка текущего.
+     */
+    defaultAvatarId: Id.nullable().default(null),
+    defaultVoiceId: Id.nullable().default(null),
+    /**
      * Кто появляется в проекте. Нужно карточке в списке: подгружать документ
      * ради двух лиц — значит читать всё содержимое проекта на каждую плитку.
      */

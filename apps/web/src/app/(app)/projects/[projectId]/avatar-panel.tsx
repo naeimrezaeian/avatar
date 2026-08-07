@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Circle, Square } from "lucide-react";
 import {
-  MODEL_VERSIONS,
   type AvatarClip,
   type AvatarStyle,
   type Scene,
@@ -11,13 +10,6 @@ import {
 import { dataClient, queryKeys } from "@/lib/data";
 import { useEditorStore } from "@/lib/editor/store";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const BACKGROUND_OPTIONS: Array<{
@@ -47,9 +39,13 @@ const PRESET_COLORS = [
 ];
 
 /**
- * Настройки аватара для выбранной сцены. Живут на клипе, а не на аватаре: один
- * и тот же аватар в разных сценах вставляют по-разному — в одной крупно по
- * центру, в другой кружком в углу.
+ * Оформление кадра для выбранной сцены: фон, форма, скругление, приближение.
+ *
+ * Настройки живут на клипе, а не на аватаре: один и тот же аватар в разных
+ * сценах вставляют по-разному — в одной крупно по центру, в другой кружком в
+ * углу. Сам аватар и голос здесь не выбираются: они заданы при создании
+ * проекта, а модель генерации назначает администратор, и подменять её в
+ * проекте пользователь не может.
  */
 export function AvatarPanel({
   scene,
@@ -94,84 +90,16 @@ export function AvatarPanel({
     );
   };
 
-  const patchScene = (patch: Partial<Scene>) => {
-    apply(
-      (draft) => {
-        const target = draft.scenes[scene.id];
-        if (target) Object.assign(target, patch);
-      },
-      { label: "Аватар сцены" },
-    );
-  };
-
   const style = clip?.style ?? null;
 
   return (
     <div className="space-y-5">
       <div>
-        <p className="font-semibold">Аватар и голос</p>
-        <p className="text-muted-foreground text-xs">Сцена {sceneIndex + 1}</p>
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="studio-avatar">Аватар</Label>
-        <Select
-          items={Object.fromEntries(
-            (avatars.data ?? []).map((item) => [item.id, item.name]),
-          )}
-          value={scene.avatarId}
-          onValueChange={(value) => {
-            if (!value) return;
-            const next = avatars.data?.find((item) => item.id === value);
-            // Голос тянется за аватаром: чужой голос на чужом лице — почти
-            // всегда ошибка, а не намерение.
-            patchScene({ avatarId: value, voiceId: next?.voiceId ?? scene.voiceId });
-          }}
-        >
-          <SelectTrigger id="studio-avatar">
-            <SelectValue placeholder={avatar?.name ?? "Выберите аватар"} />
-          </SelectTrigger>
-          <SelectContent>
-            {(avatars.data ?? [])
-              .filter((item) => item.status === "ready")
-              .map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="studio-voice">Голос</Label>
-        <Select
-          items={Object.fromEntries((voices.data ?? []).map((item) => [item.id, item.name]))}
-          value={scene.voiceId}
-          onValueChange={(value) => value && patchScene({ voiceId: value })}
-        >
-          <SelectTrigger id="studio-voice">
-            <SelectValue placeholder={voice?.name ?? "Выберите голос"} />
-          </SelectTrigger>
-          <SelectContent>
-            {(voices.data ?? [])
-              .filter((item) => item.status === "ready")
-              .map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-2">
-        <Label>Модель генерации</Label>
-        <div className="border-border bg-muted/40 rounded-lg border px-3 py-2 text-sm">
-          {MODEL_VERSIONS.avatarVideo}
-        </div>
+        <p className="font-semibold">Оформление кадра</p>
         <p className="text-muted-foreground text-xs">
-          Выбор из нескольких моделей появится, когда их будет больше одной.
+          Сцена {sceneIndex + 1}
+          {avatar ? ` · ${avatar.name}` : ""}
+          {voice ? ` · ${voice.name}` : ""}
         </p>
       </div>
 
