@@ -284,12 +284,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           {scene ? (
             <Card className="flex-1">
               <CardContent className="pt-5">
-                <AvatarPanel
-                  projectId={projectId}
-                  scene={scene}
-                  clip={avatarClip}
-                  sceneIndex={document.sceneOrder.indexOf(scene.id)}
-                />
+                <AvatarPanel projectId={projectId} clip={avatarClip} />
               </CardContent>
             </Card>
           ) : null}

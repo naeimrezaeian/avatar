@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Circle,
   Eraser,
@@ -13,9 +13,7 @@ import {
 import {
   type AvatarClip,
   type AvatarStyle,
-  type Scene,
 } from "@avatar/contracts";
-import { dataClient, queryKeys } from "@/lib/data";
 import { useEditorStore } from "@/lib/editor/store";
 import { uploadFile } from "@/lib/data/uploads";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
@@ -44,24 +42,12 @@ const PRESET_COLORS = [
  */
 export function AvatarPanel({
   projectId,
-  scene,
   clip,
-  sceneIndex,
 }: {
   projectId: string;
-  scene: Scene;
   clip: AvatarClip | null;
-  sceneIndex: number;
 }) {
   const apply = useEditorStore((state) => state.apply);
-
-  const avatars = useQuery({
-    queryKey: queryKeys.avatars,
-    queryFn: () => dataClient.avatars.list(),
-  });
-  const voices = useQuery({ queryKey: queryKeys.voices, queryFn: () => dataClient.voices.list() });
-  const avatar = avatars.data?.find((item) => item.id === scene.avatarId) ?? null;
-  const voice = voices.data?.find((item) => item.id === scene.voiceId) ?? null;
 
   const patchStyle = (patch: Partial<AvatarStyle>) => {
     if (!clip) return;
@@ -101,15 +87,6 @@ export function AvatarPanel({
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="font-semibold">Оформление кадра</p>
-        <p className="text-muted-foreground text-xs">
-          Сцена {sceneIndex + 1}
-          {avatar ? ` · ${avatar.name}` : ""}
-          {voice ? ` · ${voice.name}` : ""}
-        </p>
-      </div>
-
       {clip === null ? (
         <p className="text-muted-foreground border-border rounded-lg border border-dashed p-3 text-sm">
           Оформление кадра появится после первой генерации: клип аватара создаётся вместе с
