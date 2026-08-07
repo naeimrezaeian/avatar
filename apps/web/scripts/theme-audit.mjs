@@ -6,7 +6,7 @@ const ROUTES = [
   '/library', '/videos', '/billing', '/notifications', '/settings', '/history',
   '/podcast', '/podcast/new',
   '/admin', '/admin/users', '/admin/queue', '/admin/plans', '/admin/settings', '/admin/logs',
-  '/projects/prj_demo', '/projects/prj_demo/studio',
+  '/projects/prj_demo',
 ];
 
 function lum(rgb) {

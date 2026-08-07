@@ -28,14 +28,17 @@ const STATE_HINTS: Record<string, { text: string; tone: "muted" | "warning" | "s
   empty: { text: "Добавьте текст, чтобы озвучить сцену", tone: "muted" },
   needs_voiceover: { text: "Текст готов — можно синтезировать озвучку", tone: "muted" },
   needs_video: { text: "Озвучка готова — можно генерировать видео", tone: "muted" },
-  outdated: {
-    text: "Входные данные изменились после генерации: результат устарел",
-    tone: "warning",
-  },
+  outdated: { text: "Входные данные изменились после генерации", tone: "warning" },
   ready: { text: "Сцена сгенерирована полностью", tone: "success" },
 };
 
-export function SceneEditor({
+/**
+ * Настройки выбранной сцены: постановка кадра, речь, смета и запуск.
+ *
+ * Сам текст реплики правится в сценарии слева и здесь не дублируется — иначе
+ * два поля с одним содержимым расходились бы на глазах у пользователя.
+ */
+export function SceneSettings({
   projectId,
   scene,
   avatar,
@@ -55,20 +58,22 @@ export function SceneEditor({
 
   const voiceoverUrl = useAssetUrl(scene.voiceoverAssetId);
 
-  // Состояние выводится из хэшей текущих входных данных: хранить его нельзя,
-  // оно разъезжалось бы с текстом при каждом нажатии клавиши.
-  const currentVoiceoverHash = voiceoverInputHash({
-    voiceId: scene.voiceId,
-    scriptText: scene.scriptText,
-    speech: scene.speech,
-  });
-  const currentVideoHash = videoInputHash({
-    avatarId: scene.avatarId,
-    referenceAssetId: scene.avatarId,
-    prompt: scene.prompt,
-    voiceoverAssetId: scene.voiceoverAssetId ?? "",
-  });
-  const state = sceneGenerationState(scene, currentVoiceoverHash, currentVideoHash);
+  // Состояние выводится из хэшей текущих входных данных: хранить его нельзя, оно
+  // разъезжалось бы с текстом при каждом нажатии клавиши.
+  const state = sceneGenerationState(
+    scene,
+    voiceoverInputHash({
+      voiceId: scene.voiceId,
+      scriptText: scene.scriptText,
+      speech: scene.speech,
+    }),
+    videoInputHash({
+      avatarId: scene.avatarId,
+      referenceAssetId: scene.avatarId,
+      prompt: scene.prompt,
+      voiceoverAssetId: scene.voiceoverAssetId ?? "",
+    }),
+  );
 
   const estimatedSec = estimateSpeechDurationSec(scene.scriptText, scene.speech);
   const plannedSec = scene.durationSec ?? estimatedSec;
@@ -103,32 +108,6 @@ export function SceneEditor({
       </div>
 
       <div className="grid gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <Label htmlFor="scene-script">Текст для озвучивания</Label>
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {scene.scriptText.length} знаков · ≈{estimatedSec.toFixed(1)} с
-          </span>
-        </div>
-        <Textarea
-          id="scene-script"
-          value={scene.scriptText}
-          onChange={(event) => onChange({ scriptText: event.target.value })}
-          placeholder="То, что аватар произнесёт в этой сцене"
-          rows={6}
-        />
-        {tooShort ? (
-          <p className="text-warning text-xs">
-            Меньше {SCENE_MIN_DURATION_SEC} с — модель не примет такую сцену, добавьте текста.
-          </p>
-        ) : null}
-        {tooLong ? (
-          <p className="text-warning text-xs">
-            Больше {SCENE_MAX_DURATION_SEC / 60} минут — разбейте на несколько сцен.
-          </p>
-        ) : null}
-      </div>
-
-      <div className="grid gap-2">
         <Label htmlFor="scene-prompt">Промпт для видео</Label>
         <Textarea
           id="scene-prompt"
@@ -138,7 +117,7 @@ export function SceneEditor({
           rows={2}
         />
         <p className="text-muted-foreground text-xs">
-          Промпт управляет тем, что происходит между репликами. Саму речь задаёт текст выше.
+          Промпт управляет тем, что происходит между репликами. Саму речь задаёт текст сценария.
         </p>
       </div>
 
@@ -170,10 +149,23 @@ export function SceneEditor({
         />
       </fieldset>
 
+      {tooShort ? (
+        <p className="text-warning text-xs">
+          Меньше {SCENE_MIN_DURATION_SEC} с — модель не примет такую сцену, добавьте текста.
+        </p>
+      ) : null}
+      {tooLong ? (
+        <p className="text-warning text-xs">
+          Больше {SCENE_MAX_DURATION_SEC / 60} минут — разбейте на несколько сцен.
+        </p>
+      ) : null}
+
       {state === "outdated" ? (
         <Alert>
           <AlertTriangle className="size-4" />
-          <AlertDescription>{hint.text}. Перегенерируйте, иначе в сборку попадёт старый результат.</AlertDescription>
+          <AlertDescription>
+            {hint.text}. Перегенерируйте, иначе в сборку попадёт старый результат.
+          </AlertDescription>
         </Alert>
       ) : (
         <p
@@ -247,8 +239,8 @@ export function SceneEditor({
         </div>
 
         <p className="text-muted-foreground text-xs">
-          Озвучка не тарифицируется: проверьте текст на слух до того, как тратить кредиты на видео.
-          Модель: {MODEL_VERSIONS.avatarVideo}.
+          Озвучка не тарифицируется: проверьте текст на слух до того, как тратить кредиты на
+          видео. Модель: {MODEL_VERSIONS.avatarVideo}.
         </p>
 
         {error ? (

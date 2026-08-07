@@ -10,7 +10,6 @@ import {
   Film,
   Loader2,
   Pencil,
-  Wand2,
 } from "lucide-react";
 import {
   isJobActive,
@@ -153,19 +152,10 @@ export function PodcastDetail({ projectId }: { projectId: string }) {
           variant="secondary"
           nativeButton={false}
           role="link"
-          render={<Link href={`/projects/${projectId}/studio`} />}
-        >
-          <Wand2 className="size-4" />
-          Студия
-        </Button>
-        <Button
-          variant="secondary"
-          nativeButton={false}
-          role="link"
           render={<Link href={`/projects/${projectId}`} />}
         >
           <Pencil className="size-4" />
-          Редактор
+          Открыть в редакторе
         </Button>
       </div>
 

@@ -3,14 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, BookmarkPlus, Captions, CheckCircle2, Download, Loader2, Plus, Trash2, Wand2 } from "lucide-react";
-import {
-  Scene,
-  isJobActive,
-  sceneGenerationState,
-  videoInputHash,
-  voiceoverInputHash,
-} from "@avatar/contracts";
+import { ArrowLeft, BookmarkPlus, Captions, Download, Loader2 } from "lucide-react";
+import { Scene, isJobActive, type AvatarClip } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { newId } from "@/lib/data/db";
 import { useEditorStore } from "@/lib/editor/store";
@@ -23,10 +17,20 @@ import { Timeline } from "@/components/timeline/timeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { AvatarPanel } from "./avatar-panel";
 import { ExportDialog, projectDurationSec } from "./export-dialog";
-import { SceneEditor } from "./scene-editor";
+import { ScriptPanel } from "./script-panel";
+import { SceneSettings } from "./scene-settings";
 
+/**
+ * Рабочее пространство проекта — единственный экран работы над роликом.
+ *
+ * Раньше их было два: редактор со шкалой и студия со сценарием. Они делили
+ * один документ и повторяли друг друга — сцены, превью и запуск генерации были
+ * в обоих, — поэтому правка в одном месте выглядела пропажей в другом. Теперь
+ * всё вместе: сценарий слева, кадр и настройки сцены по центру, оформление
+ * аватара справа, раскладка во времени внизу.
+ */
 export function WorkspaceClient({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -86,7 +90,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
   }, [projectId, apply]);
 
   if (session.isPending || project.isPending) {
-    return <Skeleton className="h-96 rounded-2xl" />;
+    return <Skeleton className="h-[70vh] rounded-2xl" />;
   }
 
   if (!document || !project.data) {
@@ -94,7 +98,13 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
       <Card>
         <CardContent className="pt-6 text-center">
           <p className="text-muted-foreground text-sm">Проект не найден или был удалён.</p>
-          <Button variant="ghost" nativeButton={false} role="link" render={<Link href="/projects" />} className="mt-3">
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            role="link"
+            render={<Link href="/projects" />}
+            className="mt-3"
+          >
             К списку проектов
           </Button>
         </CardContent>
@@ -115,15 +125,25 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
     (job) => isJobActive(job) && job.sceneId === activeSceneId,
   );
 
+  const avatarClip =
+    scene !== null
+      ? ((Object.values(document.clips).find(
+          (clip) => clip.kind === "avatar" && clip.sceneId === scene.id,
+        ) ?? null) as AvatarClip | null)
+      : null;
+
   const addScene = () => {
+    const previous = scene ?? Object.values(document.scenes)[0] ?? null;
     const defaultAvatar = avatars.data?.find((item) => item.status === "ready") ?? null;
-    if (!defaultAvatar?.voiceId) return;
+    const avatarId = previous?.avatarId ?? defaultAvatar?.id;
+    const voiceId = previous?.voiceId ?? defaultAvatar?.voiceId;
+    if (!avatarId || !voiceId) return;
 
     const created = Scene.parse({
       id: newId("scn"),
       title: `Сцена ${document.sceneOrder.length + 1}`,
-      avatarId: defaultAvatar.id,
-      voiceId: defaultAvatar.voiceId,
+      avatarId,
+      voiceId,
     });
 
     apply(
@@ -150,41 +170,76 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
     );
   };
 
-  const patchScene = (patch: Partial<Scene>) => {
-    if (!scene) return;
+  const patchScene = (sceneId: string, patch: Partial<Scene>) => {
     apply(
       (draft) => {
-        const target = draft.scenes[scene.id];
-        if (!target) return;
-        Object.assign(target, patch);
+        const target = draft.scenes[sceneId];
+        if (target) Object.assign(target, patch);
       },
-      { label: "Правка сцены", coalesceKey: `scene:${scene.id}` },
+      { label: "Правка сцены", coalesceKey: `scene:${sceneId}` },
+    );
+  };
+
+  /** Вставленный текст с пустыми строками между абзацами разбивается на сцены. */
+  const changeText = (sceneId: string, text: string) => {
+    const parts = text
+      .split(/\n\s*\n/)
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+
+    const source = document.scenes[sceneId];
+    if (parts.length < 2 || !source) {
+      patchScene(sceneId, { scriptText: text });
+      return;
+    }
+
+    apply(
+      (draft) => {
+        const target = draft.scenes[sceneId];
+        if (target) target.scriptText = parts[0]!;
+
+        const position = draft.sceneOrder.indexOf(sceneId);
+        const created = parts.slice(1).map((part, index) =>
+          Scene.parse({
+            id: newId("scn"),
+            title: `Сцена ${position + index + 2}`,
+            avatarId: source.avatarId,
+            voiceId: source.voiceId,
+            scriptText: part,
+          }),
+        );
+
+        for (const item of created) draft.scenes[item.id] = item;
+        draft.sceneOrder.splice(position + 1, 0, ...created.map((item) => item.id));
+      },
+      { label: "Разбивка сценария на сцены" },
     );
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" nativeButton={false} role="link" render={<Link href="/projects" />} aria-label="Назад">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          nativeButton={false}
+          role="link"
+          render={<Link href="/projects" />}
+          aria-label="К списку проектов"
+        >
           <ArrowLeft className="size-4" />
         </Button>
+
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-semibold">{project.data.title}</h1>
           <p className="text-muted-foreground text-xs">
-            {aspectRatioLabel(project.data.aspectRatio)} · {project.data.aspectRatio}
+            {aspectRatioLabel(project.data.aspectRatio)} · {document.sceneOrder.length} сцен
             {project.data.durationSec > 0 ? ` · ${formatDuration(project.data.durationSec)}` : ""}
           </p>
         </div>
+
         <SaveIndicator dirty={dirty} saveError={session.saveError} />
-        <Button
-          variant="secondary"
-          nativeButton={false}
-          role="link"
-          render={<Link href={`/projects/${projectId}/studio`} />}
-        >
-          <Wand2 className="size-4" />
-          Студия
-        </Button>
+
         <Button
           variant="secondary"
           onClick={() => {
@@ -201,15 +256,15 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           <Captions className="size-4" />
           Субтитры
         </Button>
+
         <Button
           variant="secondary"
-          onClick={() => {
-            void dataClient.projects.update(projectId, { isTemplate: true });
-          }}
+          onClick={() => void dataClient.projects.update(projectId, { isTemplate: true })}
         >
           <BookmarkPlus className="size-4" />
           Как шаблон
         </Button>
+
         <Button
           onClick={() => setExportOpen(true)}
           disabled={projectDurationSec(document) === 0}
@@ -228,126 +283,60 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
         durationSec={projectDurationSec(document)}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[260px_1fr_minmax(0,380px)]">
-        <Card className="h-fit">
-          <CardContent className="space-y-1 pt-5">
-            <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
-              Сцены
-            </p>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,320px)]">
+        <ScriptPanel
+          document={document}
+          activeSceneId={activeSceneId}
+          onSelect={setSelectedId}
+          onChangeText={changeText}
+          onRemove={removeScene}
+          onAdd={addScene}
+        />
 
-            {document.sceneOrder.map((sceneId, index) => {
-              const item = document.scenes[sceneId];
-              if (!item) return null;
-              return (
-                <SceneListItem
-                  key={sceneId}
-                  scene={item}
-                  index={index}
-                  active={sceneId === activeSceneId}
-                  onSelect={() => setSelectedId(sceneId)}
-                  onRemove={() => removeScene(sceneId)}
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="pt-5">
+              <PreviewPlayer document={document} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-5">
+              {scene ? (
+                <SceneSettings
+                  projectId={projectId}
+                  scene={scene}
+                  avatar={avatar}
+                  onChange={(patch) => patchScene(scene.id, patch)}
+                  activeJobs={activeJobs}
                 />
-              );
-            })}
+              ) : (
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  Добавьте первую сцену в сценарии слева.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-            <Button variant="ghost" className="mt-2 w-full justify-start" onClick={addScene}>
-              <Plus className="size-4" />
-              Добавить сцену
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
+        <Card className="h-fit xl:max-h-[calc(100dvh-11rem)] xl:overflow-y-auto">
           <CardContent className="pt-5">
             {scene ? (
-              <SceneEditor
-                projectId={projectId}
+              <AvatarPanel
                 scene={scene}
-                avatar={avatar}
-                onChange={patchScene}
-                activeJobs={activeJobs}
+                clip={avatarClip}
+                sceneIndex={document.sceneOrder.indexOf(scene.id)}
               />
             ) : (
-              <p className="text-muted-foreground py-10 text-center text-sm">
-                Выберите сцену слева или добавьте новую.
+              <p className="text-muted-foreground text-sm">
+                Оформление появится, когда будет выбрана сцена.
               </p>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardContent className="pt-5">
-            <PreviewPlayer document={document} />
           </CardContent>
         </Card>
       </div>
 
       <Timeline document={document} />
-    </div>
-  );
-}
-
-function SceneListItem({
-  scene,
-  index,
-  active,
-  onSelect,
-  onRemove,
-}: {
-  scene: Scene;
-  index: number;
-  active: boolean;
-  onSelect: () => void;
-  onRemove: () => void;
-}) {
-  const state = sceneGenerationState(
-    scene,
-    voiceoverInputHash({
-      voiceId: scene.voiceId,
-      scriptText: scene.scriptText,
-      speech: scene.speech,
-    }),
-    videoInputHash({
-      avatarId: scene.avatarId,
-      referenceAssetId: scene.avatarId,
-      prompt: scene.prompt,
-      voiceoverAssetId: scene.voiceoverAssetId ?? "",
-    }),
-  );
-
-  return (
-    <div
-      className={cn(
-        "group flex items-center gap-1 rounded-lg pr-1 transition-colors",
-        active ? "bg-accent" : "hover:bg-muted",
-      )}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-      >
-        <span className="text-muted-foreground w-4 shrink-0 text-xs tabular-nums">{index + 1}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm">{scene.title || "Без названия"}</span>
-          <span className="text-muted-foreground block truncate text-xs">
-            {scene.durationSec !== null ? `${scene.durationSec.toFixed(1)} с` : "не озвучена"}
-          </span>
-        </span>
-        {state === "ready" ? <CheckCircle2 className="text-success size-3.5 shrink-0" /> : null}
-        {state === "outdated" ? (
-          <span className="bg-warning size-2 shrink-0 rounded-full" title="Результат устарел" />
-        ) : null}
-      </button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7 shrink-0 opacity-0 group-hover:opacity-100"
-        aria-label="Удалить сцену"
-        onClick={onRemove}
-      >
-        <Trash2 className="size-3.5" />
-      </Button>
     </div>
   );
 }

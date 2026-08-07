@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Circle, Clapperboard, Loader2, Square } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Circle, Square } from "lucide-react";
 import {
   MODEL_VERSIONS,
   type AvatarClip,
@@ -10,7 +10,6 @@ import {
 } from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
 import { useEditorStore } from "@/lib/editor/store";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -53,12 +52,10 @@ const PRESET_COLORS = [
  * центру, в другой кружком в углу.
  */
 export function AvatarPanel({
-  projectId,
   scene,
   clip,
   sceneIndex,
 }: {
-  projectId: string;
   scene: Scene;
   clip: AvatarClip | null;
   sceneIndex: number;
@@ -70,28 +67,8 @@ export function AvatarPanel({
     queryFn: () => dataClient.avatars.list(),
   });
   const voices = useQuery({ queryKey: queryKeys.voices, queryFn: () => dataClient.voices.list() });
-  const jobs = useQuery({
-    queryKey: queryKeys.jobs(projectId),
-    queryFn: () => dataClient.jobs.list({ projectId }),
-  });
-
   const avatar = avatars.data?.find((item) => item.id === scene.avatarId) ?? null;
   const voice = voices.data?.find((item) => item.id === scene.voiceId) ?? null;
-
-  const activeJob = (jobs.data ?? []).find(
-    (job) => job.sceneId === scene.id && (job.status === "queued" || job.status === "running"),
-  );
-
-  const render = useMutation({
-    mutationFn: async () => {
-      // Сцена рендерится в два шага, и порядок нарушать нельзя: видео строится
-      // из озвучки. Если её ещё нет — начинаем с неё.
-      if (scene.voiceoverAssetId === null) {
-        return dataClient.generation.startVoiceover({ projectId, sceneId: scene.id });
-      }
-      return dataClient.generation.startVideo({ projectId, sceneId: scene.id });
-    },
-  });
 
   const patchStyle = (patch: Partial<AvatarStyle>) => {
     if (!clip) return;
@@ -305,30 +282,6 @@ export function AvatarPanel({
         </>
       )}
 
-      <div className="border-border border-t pt-4">
-        <Button
-          onClick={() => render.mutate()}
-          disabled={
-            scene.scriptText.trim().length === 0 || activeJob !== undefined || render.isPending
-          }
-          className="bg-gradient-accent w-full text-white hover:opacity-90"
-        >
-          {activeJob || render.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Clapperboard className="size-4" />
-          )}
-          {activeJob
-            ? `Идёт генерация ${activeJob.progressPct}%`
-            : scene.voiceoverAssetId === null
-              ? "Синтезировать озвучку"
-              : "Отрендерить сцену"}
-        </Button>
-
-        {render.error ? (
-          <p className="text-destructive mt-2 text-sm">{render.error.message}</p>
-        ) : null}
-      </div>
     </div>
   );
 }
