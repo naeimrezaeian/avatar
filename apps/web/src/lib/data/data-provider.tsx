@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { dataClient, queryKeys } from ".";
-import { onPreparationChange } from "./preparation";
+import { onPreparationChange, resumePreparation } from "./preparation";
 import { seedIfEmpty } from "./seed";
 
 /** Сколько ждём открытия базы, прежде чем признать её недоступной. */
@@ -79,7 +79,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
 
     Promise.race([seedIfEmpty(), timeout])
-      .then(() => setReady(true))
+      .then(() => {
+        setReady(true);
+        // После посева, а не вместо него: подготовка, прерванная закрытием
+        // вкладки, иначе не возобновится никогда.
+        void resumePreparation();
+      })
       .catch((cause: unknown) => {
         setError(
           cause instanceof Error ? cause.message : "Не удалось открыть локальное хранилище",

@@ -48,3 +48,45 @@ export function startPreparation(kind: Kind, id: string): void {
     setTimeout(() => void applyStatus(kind, id, step.status, step.message), step.delayMs);
   }
 }
+
+/** Сколько всего длится подготовка от загрузки материалов до готовности. */
+const TOTAL_MS = STEPS[STEPS.length - 1]!.delayMs;
+
+/**
+ * Возобновление прерванной подготовки при запуске приложения.
+ *
+ * Шаги живут на setTimeout в открытой вкладке: уход со страницы или перезагрузка
+ * в первые секунды убивали таймеры, и аватар оставался «готовится» навсегда.
+ * Выглядело это как поломка выбора аватара в новом проекте — выбрать было
+ * нечего, и починить нечем.
+ *
+ * Настоящая подготовка выполняется на сервере и переживает закрытие вкладки;
+ * до её появления состояние восстанавливается по времени последнего изменения:
+ * если срок вышел — доводим до готовности сразу, если нет — досматриваем
+ * оставшиеся шаги.
+ */
+export async function resumePreparation(): Promise<void> {
+  const db = await getDb();
+
+  for (const kind of ["avatars", "voices"] as const) {
+    const records = await db.getAll(kind);
+
+    for (const record of records) {
+      if (record.status === "ready" || record.status === "error") continue;
+
+      const elapsedMs = Date.now() - new Date(record.updatedAt).getTime();
+      if (elapsedMs >= TOTAL_MS) {
+        await applyStatus(kind, record.id, "ready", null);
+        continue;
+      }
+
+      for (const step of STEPS) {
+        if (step.delayMs <= elapsedMs) continue;
+        setTimeout(
+          () => void applyStatus(kind, record.id, step.status, step.message),
+          step.delayMs - elapsedMs,
+        );
+      }
+    }
+  }
+}

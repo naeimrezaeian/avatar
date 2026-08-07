@@ -68,14 +68,23 @@ export function NewProjectForm() {
   );
   const blockedAvatars = liveAvatars.filter((avatar) => !usableAvatars.includes(avatar));
 
-  const selectedAvatar = usableAvatars.find((avatar) => avatar.id === avatarId) ?? null;
+  /**
+   * Единственный пригодный аватар выбирается сам.
+   *
+   * Значение выводится, а не записывается эффектом: список приходит запросом, и
+   * копия в состоянии разъезжалась бы с ним, стоит аватару догото́виться уже
+   * после открытия формы.
+   */
+  const effectiveAvatarId = avatarId || (usableAvatars[0]?.id ?? "");
+  const selectedAvatar =
+    usableAvatars.find((avatar) => avatar.id === effectiveAvatarId) ?? null;
 
   const create = useMutation({
     mutationFn: async () => {
       const project = await dataClient.projects.create({
         title: title.trim(),
         aspectRatio,
-        avatarId: avatarId || null,
+        avatarId: selectedAvatar?.id ?? null,
         voiceId: selectedAvatar?.voiceId ?? null,
       });
       if (description.trim().length > 0) {
@@ -96,40 +105,7 @@ export function NewProjectForm() {
       <Card>
         <CardContent className="space-y-5 pt-5">
           <div className="grid gap-2">
-            <Label htmlFor="project-title">Название проекта</Label>
-            <Input
-              id="project-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Например: приветственный ролик"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="project-description">Описание</Label>
-            <Textarea
-              id="project-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Необязательно: для чего этот ролик"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Соотношение сторон</Label>
-            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} />
-            <Alert>
-              <Info className="size-4" />
-              <AlertDescription>
-                Кадр выбирается один раз: композиция сцен привязана к нему, и сменить его потом
-                без пересборки раскладки нельзя.
-              </AlertDescription>
-            </Alert>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="project-avatar">Аватар по умолчанию</Label>
+            <Label htmlFor="project-avatar">Аватар</Label>
             {loading ? (
               <p className="text-muted-foreground text-sm">Загрузка аватаров…</p>
             ) : usableAvatars.length === 0 ? (
@@ -171,7 +147,7 @@ export function NewProjectForm() {
                   items={Object.fromEntries(
                     usableAvatars.map((avatar) => [avatar.id, avatar.name]),
                   )}
-                  value={avatarId}
+                  value={effectiveAvatarId}
                   onValueChange={(value) => setAvatarId(value ?? "")}
                 >
                   <SelectTrigger id="project-avatar">
@@ -186,11 +162,44 @@ export function NewProjectForm() {
                   </SelectContent>
                 </Select>
                 <p className="text-muted-foreground text-xs">
-                  Голос подставится тот, что привязан к аватару. В отдельных сценах его можно
-                  будет заменить.
+                  Аватар выбирается первым: он задаёт и лицо, и голос — озвучка пойдёт тем,
+                  что к нему привязан. В отдельных сценах голос можно будет заменить.
                 </p>
               </>
             )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="project-title">Название проекта</Label>
+            <Input
+              id="project-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Например: приветственный ролик"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="project-description">Описание</Label>
+            <Textarea
+              id="project-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Необязательно: для чего этот ролик"
+              rows={2}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Соотношение сторон</Label>
+            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} />
+            <Alert>
+              <Info className="size-4" />
+              <AlertDescription>
+                Кадр выбирается один раз: композиция сцен привязана к нему, и сменить его потом
+                без пересборки раскладки нельзя.
+              </AlertDescription>
+            </Alert>
           </div>
 
           {create.error ? (
