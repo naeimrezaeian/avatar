@@ -15,7 +15,8 @@
     "check:system": "tsx scripts/system-check.ts",
     "check:browser": "node scripts/diag.mjs",
     "check:theme": "node scripts/theme-audit.mjs",
-    "check:api": "node scripts/api-check.mjs"
+    "check:api": "node scripts/api-check.mjs",
+    "check:timeline": "node scripts/timeline-check.mjs"
   },
   "dependencies": {
     "@avatar/contracts": "*",
