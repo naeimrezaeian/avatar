@@ -278,10 +278,11 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Button
           variant="ghost"
           size="icon"
+          className="shrink-0"
           nativeButton={false}
           role="link"
           render={<Link href="/projects" />}
@@ -290,7 +291,10 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           <ArrowLeft className="size-4" />
         </Button>
 
-        <div className="min-w-0 flex-1">
+        {/* На узком экране название занимает всю строку, а отметка о
+            сохранении уходит под него: делить 390 px между ними значило бы
+            обрезать название на третьем слоге. */}
+        <div className="min-w-0 flex-1 basis-full sm:basis-auto">
           <h1 className="truncate text-xl font-semibold">{project.data.title}</h1>
           <p className="text-muted-foreground text-xs">
             {aspectRatioLabel(project.data.aspectRatio)} · {document.sceneOrder.length} сцен
@@ -298,7 +302,9 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
           </p>
         </div>
 
-        <SaveIndicator dirty={dirty} saveError={session.saveError} />
+        <div className="ml-auto shrink-0">
+          <SaveIndicator dirty={dirty} saveError={session.saveError} />
+        </div>
       </div>
 
       <ExportDialog

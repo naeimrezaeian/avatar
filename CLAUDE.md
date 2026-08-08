@@ -18,9 +18,10 @@ npm run typecheck  # tsc --noEmit across workspaces
 Checks live in `apps/web/scripts` and are assertion scripts, not a test runner:
 
 ```bash
-npm run check       # data + editor + admin + system, in Node against fake-indexeddb
-npm run check:api   # HTTP checks of auth and permissions — needs a running server
-npm run check:theme # every page screenshot-audited for stray colours (Playwright)
+npm run check          # data + editor + admin + system, in Node against fake-indexeddb
+npm run check:api      # HTTP checks of auth and permissions — needs a running server
+npm run check:timeline # drag, trim, snap and undo driven by a real mouse — needs a server
+npm run check:theme    # every page screenshot-audited for stray colours (Playwright)
 npm run check:browser
 ```
 

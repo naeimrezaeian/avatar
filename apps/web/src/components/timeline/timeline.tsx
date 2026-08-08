@@ -46,7 +46,14 @@ import { cn } from "@/lib/utils";
 import { ClipView } from "./clip-view";
 
 const TRACK_HEIGHT = 56;
+
+/**
+ * Ширина колонки с названиями дорожек. На телефоне она урезана: 172 px от 390
+ * не оставляют места самой шкале, а название дорожки и там, и там читается —
+ * просто короче.
+ */
 const HEADER_WIDTH = 172;
+const HEADER_WIDTH_NARROW = 104;
 
 export function Timeline({ document }: { document: ProjectDocument }) {
   const laneRef = useRef<HTMLDivElement>(null);
@@ -261,7 +268,15 @@ export function Timeline({ document }: { document: ProjectDocument }) {
       ) : null}
 
       <div className="flex">
-        <div className="border-border shrink-0 border-r" style={{ width: HEADER_WIDTH }}>
+        <div
+          className="border-border w-[var(--track-header-narrow)] shrink-0 border-r sm:w-[var(--track-header)]"
+          style={
+            {
+              "--track-header": `${HEADER_WIDTH}px`,
+              "--track-header-narrow": `${HEADER_WIDTH_NARROW}px`,
+            } as React.CSSProperties
+          }
+        >
           <div className="border-border h-7 border-b" />
           {document.trackOrder.map((trackId) => {
             const track = document.tracks[trackId];
