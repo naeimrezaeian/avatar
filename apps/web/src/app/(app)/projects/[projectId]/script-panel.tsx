@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  FileUp,
   ListOrdered,
+  Loader2,
   Maximize2,
   Minimize2,
   Plus,
@@ -17,6 +20,12 @@ import {
   type ProjectDocument,
   type Scene,
 } from "@avatar/contracts";
+import {
+  SCRIPT_IMPORT_ACCEPT,
+  ScriptImportError,
+  parseScriptFile,
+  type ScriptPart,
+} from "@/lib/editor/script-import";
 import { SceneVoiceButton } from "./scene-voice-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +51,7 @@ export function ScriptPanel({
   onChangeTitle,
   onRemove,
   onAdd,
+  onImport,
 }: {
   projectId: string;
   document: ProjectDocument;
@@ -56,7 +66,30 @@ export function ScriptPanel({
   onChangeTitle: (sceneId: string, title: string) => void;
   onRemove: (sceneId: string) => void;
   onAdd: () => void;
+  /** Готовые реплики из файла: один элемент — одна сцена. */
+  onImport: (parts: ScriptPart[]) => void;
 }) {
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const importFile = async (file: File) => {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const parts = await parseScriptFile(file);
+      if (parts.length === 0) throw new ScriptImportError("В файле нет текста");
+      onImport(parts);
+    } catch (error) {
+      setImportError(
+        error instanceof ScriptImportError || error instanceof Error
+          ? error.message
+          : "Не удалось прочитать файл",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     // На широком экране карточка занимает всю высоту ряда (её позиционирует
     // родитель), поэтому длина сценария меняет не высоту колонки, а длину
@@ -74,6 +107,31 @@ export function ScriptPanel({
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             {document.sceneOrder.length}
           </span>
+          {/* Импорт стоит рядом с разворотом, а не отдельной кнопкой на
+              странице: он относится к сценарию, а не к проекту целиком. */}
+          <label
+            title="Загрузить сценарий из файла"
+            aria-label="Загрузить сценарий из файла"
+            className="hover:bg-accent flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors"
+          >
+            {importing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <FileUp className="size-3.5" />
+            )}
+            <input
+              type="file"
+              accept={SCRIPT_IMPORT_ACCEPT}
+              className="sr-only"
+              disabled={importing}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void importFile(file);
+              }}
+            />
+          </label>
+
           <Button
             variant="ghost"
             size="icon-xs"
@@ -114,8 +172,13 @@ export function ScriptPanel({
             Добавить сцену
           </Button>
 
+          {importError ? (
+            <p className="text-destructive pt-1 text-xs">{importError}</p>
+          ) : null}
+
           <p className="text-muted-foreground pt-1 text-xs">
             Вставьте текст с пустыми строками между абзацами — он сам разложится по сценам.
+            Или загрузите .txt, .md либо .docx кнопкой сверху.
           </p>
         </div>
       </CardContent>

@@ -10,6 +10,7 @@ import { newId } from "@/lib/data/db";
 import { useEditorStore } from "@/lib/editor/store";
 import { syncSceneClips } from "@/lib/editor/operations";
 import { syncSceneSubtitles } from "@/lib/editor/subtitles";
+import type { ScriptPart } from "@/lib/editor/script-import";
 import { useEditorSession, useUndoShortcuts } from "@/lib/editor/use-editor-session";
 import { aspectRatioLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -200,6 +201,45 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
     );
   };
 
+  /**
+   * Сценарий из файла.
+   *
+   * Пустая заготовка заменяется, непустой сценарий дополняется в конец: терять
+   * уже написанное из-за одного нажатия недопустимо, а требовать сначала
+   * очистить список — лишний шаг.
+   */
+  const importScript = (parts: ScriptPart[]) => {
+    const avatarId = project.data?.defaultAvatarId ?? scene?.avatarId ?? null;
+    const voiceId = project.data?.defaultVoiceId ?? scene?.voiceId ?? null;
+    if (!avatarId || !voiceId) return;
+
+    apply(
+      (draft) => {
+        const empty = draft.sceneOrder.filter(
+          (id) => (draft.scenes[id]?.scriptText ?? "").trim().length === 0,
+        );
+        for (const id of empty) {
+          delete draft.scenes[id];
+          draft.sceneOrder = draft.sceneOrder.filter((item) => item !== id);
+        }
+
+        parts.forEach((part, index) => {
+          const created = Scene.parse({
+            id: newId("scn"),
+            title: part.title ?? `Сцена ${draft.sceneOrder.length + 1}`,
+            avatarId,
+            voiceId,
+            scriptText: part.text,
+          });
+          draft.scenes[created.id] = created;
+          draft.sceneOrder.push(created.id);
+          if (index === 0) setSelectedId(created.id);
+        });
+      },
+      { label: "Сценарий из файла" },
+    );
+  };
+
   /** Вставленный текст с пустыми строками между абзацами разбивается на сцены. */
   const changeText = (sceneId: string, text: string) => {
     const parts = text
@@ -296,6 +336,7 @@ export function WorkspaceClient({ projectId }: { projectId: string }) {
             onChangeTitle={(sceneId, title) => patchScene(sceneId, { title })}
             onRemove={removeScene}
             onAdd={addScene}
+            onImport={importScript}
           />
         </div>
 

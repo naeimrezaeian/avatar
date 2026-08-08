@@ -75,7 +75,6 @@ async function main() {
   await page.waitForURL(/\/projects\/prj_/, { timeout: 20000 });
   await page.waitForTimeout(2000);
 
-  const lane = page.locator(".overflow-x-auto").first();
   const musicInput = 'label[aria-label="Добавить файл на дорожку «Музыка»"] input';
 
   // --- Добавление ---
