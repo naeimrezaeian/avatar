@@ -3,6 +3,7 @@ import { useEditorStore } from "../src/lib/editor/store";
 import {
   addMediaClip,
   addTextClip,
+  applyDesignStyle,
   clampStart,
   duplicateClips,
   moveClip,
@@ -251,6 +252,39 @@ check("у надписи есть длительность", textClip.durationSe
 
 store.getState().undo();
 check("добавление отменяется", store.getState().document!.clips[textId!] === undefined);
+
+// --- Стиль оформления ---
+store.getState().load(baseDocument());
+check("по умолчанию стиль чистый", store.getState().document!.styleId === "sty_clean");
+
+let styledText: string | null = null;
+store.getState().apply((draft) => {
+  applyDesignStyle(draft, "sty_circle");
+  styledText = addTextClip(draft, { trackId: "t_text", startSec: 0 });
+}, { label: "Стиль" });
+
+const styled = store.getState().document!;
+const styledAvatar = styled.clips.c_avatar!;
+const styledLabel = styled.clips[styledText!]!;
+check("стиль записан в документ", styled.styleId === "sty_circle");
+check(
+  "стиль применён к клипу аватара",
+  styledAvatar.kind === "avatar" && styledAvatar.style.shape === "circle",
+);
+check(
+  "новая надпись рождается в стиле проекта",
+  styledLabel.kind === "text" && styledLabel.style.backgroundColor === "#000000",
+);
+
+store.getState().undo();
+const restored = store.getState().document!;
+const restoredAvatar = restored.clips.c_avatar!;
+check(
+  "смена стиля отменяется",
+  restored.styleId === "sty_clean" &&
+    restoredAvatar.kind === "avatar" &&
+    restoredAvatar.style.shape === "original",
+);
 
 console.log(failures === 0 ? "\nВСЕ ПРОВЕРКИ ПРОШЛИ" : `\nПРОВАЛЕНО: ${failures}`);
 process.exit(failures === 0 ? 0 : 1);

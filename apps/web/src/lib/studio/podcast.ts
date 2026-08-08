@@ -161,6 +161,9 @@ export function buildPodcastDocument(
     projectId,
     revision: 0,
     aspectRatio: brief.aspectRatio,
+    // Подкаст всегда снимается в студийном оформлении: два говорящих на
+    // однотонном фоне читаются лучше, чем на пёстром.
+    styleId: "sty_studio",
     scenes,
     sceneOrder,
     tracks: Object.fromEntries(tracks.map((track) => [track.id, track])),

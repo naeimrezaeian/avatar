@@ -67,6 +67,8 @@ export interface ProjectRepository {
     voiceId: string | null;
     format?: Project["format"];
     participantAvatarIds?: string[];
+    /** Шаблон задаёт кадр, стиль оформления и скелет сценария (п.13 ТЗ). */
+    templateId?: string;
   }): Promise<Project>;
   update(id: string, patch: Patch<Project>): Promise<Project>;
   duplicate(id: string): Promise<Project>;

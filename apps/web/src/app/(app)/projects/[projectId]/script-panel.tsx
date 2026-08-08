@@ -278,7 +278,7 @@ function ScriptLine({
           value={scene.scriptText}
           onChange={(event) => onChange(event.target.value)}
           onFocus={onSelect}
-          placeholder="Текст реплики…"
+          placeholder={scene.hint || "Текст реплики…"}
           // В развёрнутой панели поле выше: там текст и пишут, а не просматривают.
           rows={expanded ? 7 : 3}
           className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"

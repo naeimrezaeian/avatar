@@ -2,11 +2,13 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { Camera, Circle, Eraser, Loader2, Palette, Square, Upload } from "lucide-react";
+import { DESIGN_STYLES } from "@avatar/contracts";
 import {
   type AvatarClip,
   type AvatarStyle,
 } from "@avatar/contracts";
 import { useEditorStore } from "@/lib/editor/store";
+import { applyDesignStyle } from "@/lib/editor/operations";
 import { uploadFile } from "@/lib/data/uploads";
 import { useAssetUrl } from "@/lib/data/use-asset-url";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,7 @@ export function AvatarPanel({
   clip: AvatarClip | null;
 }) {
   const apply = useEditorStore((state) => state.apply);
+  const styleId = useEditorStore((state) => state.document?.styleId ?? "sty_clean");
 
   const patchStyle = (patch: Partial<AvatarStyle>) => {
     if (!clip) return;
@@ -80,6 +83,39 @@ export function AvatarPanel({
 
   return (
     <div className="space-y-5">
+      {/* Стиль стоит выше ручных настроек: он задаёт их все разом, и порядок
+          «сначала общее, потом частности» соответствует порядку работы. */}
+      <div className="grid gap-2">
+        <Label>Стиль оформления</Label>
+        <div className="flex flex-wrap gap-2">
+          {DESIGN_STYLES.map((style) => (
+            <button
+              key={style.id}
+              type="button"
+              title={style.description}
+              aria-pressed={styleId === style.id}
+              onClick={() =>
+                apply((draft) => applyDesignStyle(draft, style.id), {
+                  label: `Стиль «${style.name}»`,
+                })
+              }
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-xs transition-colors",
+                styleId === style.id
+                  ? "border-ring bg-accent/50"
+                  : "border-border hover:bg-muted",
+              )}
+            >
+              {style.name}
+            </button>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Стиль применяется ко всем сценам и надписям проекта. Отдельный кадр можно поправить
+          ниже.
+        </p>
+      </div>
+
       {clip === null ? (
         <p className="text-muted-foreground border-border rounded-lg border border-dashed p-3 text-sm">
           Оформление кадра появится после первой генерации: клип аватара создаётся вместе с

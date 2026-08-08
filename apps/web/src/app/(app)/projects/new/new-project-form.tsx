@@ -5,8 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Info, Loader2 } from "lucide-react";
-import { isAvatarUsable, type AspectRatio, type Avatar, type Voice } from "@avatar/contracts";
+import {
+  PROJECT_TEMPLATES,
+  isAvatarUsable,
+  type AspectRatio,
+  type Avatar,
+  type Voice,
+} from "@avatar/contracts";
 import { dataClient, queryKeys } from "@/lib/data";
+import { cn } from "@/lib/utils";
 import { AspectRatioPicker } from "@/components/aspect-ratio-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -44,8 +51,14 @@ export function NewProjectForm() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio | null>(null);
   const [avatarId, setAvatarId] = useState("");
+  const [templateId, setTemplateId] = useState(PROJECT_TEMPLATES[0]!.id);
+
+  const template = PROJECT_TEMPLATES.find((item) => item.id === templateId) ?? null;
+  // Кадр берётся из шаблона, пока его не поменяли руками: подставлять 16:9
+  // вертикальному шаблону значило бы спорить с собственным выбором.
+  const effectiveAspectRatio = aspectRatio ?? template?.aspectRatio ?? "16:9";
 
   const avatars = useQuery({
     queryKey: queryKeys.avatars,
@@ -83,9 +96,10 @@ export function NewProjectForm() {
     mutationFn: async () => {
       const project = await dataClient.projects.create({
         title: title.trim(),
-        aspectRatio,
+        aspectRatio: effectiveAspectRatio,
         avatarId: selectedAvatar?.id ?? null,
         voiceId: selectedAvatar?.voiceId ?? null,
+        templateId,
       });
       if (description.trim().length > 0) {
         await dataClient.projects.update(project.id, { description: description.trim() });
@@ -191,8 +205,44 @@ export function NewProjectForm() {
           </div>
 
           <div className="grid gap-2">
+            <Label>Шаблон</Label>
+            {/* Шаблон задаёт кадр, оформление и скелет сценария — но не текст
+                реплик: придумывать за пользователя, что он хочет сказать, не
+                дело платформы. */}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {PROJECT_TEMPLATES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setTemplateId(item.id);
+                    // Ручной выбор кадра сбрасывается: у нового шаблона он свой.
+                    setAspectRatio(null);
+                  }}
+                  aria-pressed={templateId === item.id}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-colors",
+                    templateId === item.id
+                      ? "border-ring bg-accent/40"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  <p className="text-sm font-medium">{item.name}</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">{item.description}</p>
+                  {item.scenes.length > 0 ? (
+                    <p className="text-muted-foreground mt-1 text-xs tabular-nums">
+                      {item.scenes.length} сцен{item.scenes.length === 1 ? "а" : ""} с
+                      указаниями к кадру
+                    </p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-2">
             <Label>Соотношение сторон</Label>
-            <AspectRatioPicker value={aspectRatio} onChange={setAspectRatio} />
+            <AspectRatioPicker value={effectiveAspectRatio} onChange={setAspectRatio} />
             <Alert>
               <Info className="size-4" />
               <AlertDescription>

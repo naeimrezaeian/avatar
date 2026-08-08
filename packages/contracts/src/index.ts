@@ -12,3 +12,4 @@ export * from './credits';
 export * from './generation';
 export * from './system';
 export * from './studio';
+export * from './templates';

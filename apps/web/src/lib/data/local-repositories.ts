@@ -6,6 +6,9 @@ import {
   CreditTransaction,
   Project,
   ProjectDocument,
+  Scene,
+  findTemplate,
+  type ProjectTemplate,
   RenderVersion,
   Track,
   Voice,
@@ -69,7 +72,11 @@ function normalizeLayerOrder(document: ProjectDocument): ProjectDocument {
   return { ...document, trackOrder };
 }
 
-function createDefaultDocument(projectId: string, aspectRatio: Project["aspectRatio"]) {
+function createDefaultDocument(
+  projectId: string,
+  aspectRatio: Project["aspectRatio"],
+  options: { template: ProjectTemplate | null; avatarId: string | null; voiceId: string | null },
+) {
   const tracks: Record<string, Track> = {};
   const trackOrder: string[] = [];
 
@@ -83,12 +90,34 @@ function createDefaultDocument(projectId: string, aspectRatio: Project["aspectRa
     trackOrder.push(track.id);
   }
 
+  // Скелет сценария из шаблона. Текст реплик не подставляется намеренно:
+  // придумывать за пользователя, что он хочет сказать, — не дело платформы,
+  // а подсказать, из каких частей обычно состоит такой ролик, полезно.
+  const scenes: Record<string, Scene> = {};
+  const sceneOrder: string[] = [];
+
+  if (options.template && options.avatarId && options.voiceId) {
+    for (const preset of options.template.scenes) {
+      const scene = Scene.parse({
+        id: newId("scn"),
+        title: preset.title,
+        avatarId: options.avatarId,
+        voiceId: options.voiceId,
+        prompt: preset.prompt,
+        hint: preset.placeholder,
+      });
+      scenes[scene.id] = scene;
+      sceneOrder.push(scene.id);
+    }
+  }
+
   return ProjectDocument.parse({
     projectId,
     revision: 0,
     aspectRatio,
-    scenes: {},
-    sceneOrder: [],
+    styleId: options.template?.styleId ?? "sty_clean",
+    scenes,
+    sceneOrder,
     tracks,
     trackOrder,
     clips: {},
@@ -203,12 +232,13 @@ export const projectRepository: ProjectRepository = {
   async create(input) {
     const db = await getDb();
     const timestamp = nowIso();
+    const template = input.templateId ? findTemplate(input.templateId) : null;
     const project = Project.parse({
       id: newId("prj"),
       userId: "usr_demo",
       title: input.title,
       aspectRatio: input.aspectRatio,
-      format: input.format ?? "standard",
+      format: input.format ?? template?.format ?? "standard",
       defaultAvatarId: input.avatarId,
       defaultVoiceId: input.voiceId,
       participantAvatarIds:
@@ -222,7 +252,13 @@ export const projectRepository: ProjectRepository = {
     const tx = db.transaction(["projects", "documents"], "readwrite");
     await Promise.all([
       tx.objectStore("projects").put(project),
-      tx.objectStore("documents").put(createDefaultDocument(project.id, project.aspectRatio)),
+      tx.objectStore("documents").put(
+        createDefaultDocument(project.id, project.aspectRatio, {
+          template,
+          avatarId: input.avatarId,
+          voiceId: input.voiceId,
+        }),
+      ),
       tx.done,
     ]);
 
@@ -253,7 +289,11 @@ export const projectRepository: ProjectRepository = {
 
     const document = sourceDocument
       ? ProjectDocument.parse({ ...sourceDocument, projectId: copy.id, revision: 0 })
-      : createDefaultDocument(copy.id, copy.aspectRatio);
+      : createDefaultDocument(copy.id, copy.aspectRatio, {
+          template: null,
+          avatarId: copy.defaultAvatarId,
+          voiceId: copy.defaultVoiceId,
+        });
 
     const tx = db.transaction(["projects", "documents"], "readwrite");
     await Promise.all([

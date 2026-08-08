@@ -6,6 +6,7 @@ import {
   TextClip,
   VideoClip,
   clipEndSec,
+  findStyle,
   isDurationLocked,
   type Clip,
   type ClipKind,
@@ -265,11 +266,32 @@ export function addTextClip(
     startSec: 0,
     durationSec: DEFAULT_TEXT_DURATION_SEC,
     text: input.text ?? "Новая надпись",
+    // Надпись рождается в оформлении проекта, а не в стандартном: иначе выбор
+    // стиля не влиял бы ни на что, пока не поправишь каждую вручную.
+    style: findStyle(draft.styleId).text,
   });
 
   const placed = placeAt(draft, clip, input.startSec);
   draft.clips[placed.id] = placed;
   return placed.id;
+}
+
+/**
+ * Смена стиля оформления проекта.
+ *
+ * Применяется и к уже созданным клипам: стиль, меняющий вид только будущих
+ * сцен, оставлял бы проект наполовину в старом оформлении — то есть делал бы
+ * ровно обратное тому, зачем его выбирают. Клипы, которые правили вручную,
+ * это тоже затрагивает: выбор стиля — осознанное действие, и его можно отменить.
+ */
+export function applyDesignStyle(draft: ProjectDocument, styleId: string): void {
+  const style = findStyle(styleId);
+  draft.styleId = style.id;
+
+  for (const clip of Object.values(draft.clips)) {
+    if (clip.kind === "avatar") clip.style = { ...style.avatar };
+    if (clip.kind === "text" || clip.kind === "subtitle") clip.style = { ...style.text };
+  }
 }
 
 export function setClipVolume(draft: ProjectDocument, clipId: string, volumePct: number): void {
@@ -358,6 +380,7 @@ export function syncSceneClips(draft: ProjectDocument, scene: Scene): void {
       sceneId: scene.id,
       startSec,
       durationSec: scene.durationSec,
+      style: findStyle(draft.styleId).avatar,
     });
     draft.clips[clip.id] = clip;
   }
